@@ -105,3 +105,25 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Onboarding Screen Component Utilities */
+@utility onboarding-title {
+  font-family: Poppins-Bold;
+  font-size: 26px;
+  color: #0D132B;
+}
+
+@utility onboarding-headline {
+  font-family: Poppins-Bold;
+  font-size: 32px;
+  line-height: 40px;
+  color: #0D132B;
+}
+
+@utility speech-bubble {
+  position: absolute;
+  z-index: 10;
+  padding-horizontal: 16px;
+  padding-vertical: 8px;
+  border-radius: 20px;
+}

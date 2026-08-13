@@ -1,10 +1,10 @@
-import { Text, View, TouchableOpacity } from "react-native";
 import { Link } from "expo-router";
+import { Text, TouchableOpacity, View } from "react-native";
 
 export default function Index() {
   return (
     <View className="flex-1 justify-center items-center bg-white px-6 gap-6">
-      <Text className="text-h1 text-center color-lingua-purple">Dulingo</Text>
+      <Text className="text-h1 text-center color-lingua-purple">Fluento</Text>
 
       <Link href="/onboarding" asChild>
         <TouchableOpacity
