@@ -1,7 +1,9 @@
+import { useSignUp, useSSO } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -13,21 +15,120 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../../constants/images";
 import VerificationModal from "../components/VerificationModal";
 
+const getErrorMessage = (error: unknown): string => {
+  if (!error) return "An error occurred";
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    const err = error as Record<string, any>;
+    if (err.longMessage) return String(err.longMessage);
+    if (err.message) return String(err.message);
+    if (Array.isArray(err.errors) && err.errors[0]) {
+      return err.errors[0].longMessage || err.errors[0].message || "Sign up error";
+    }
+  }
+  return "An unexpected error occurred";
+};
+
 export default function SignUpScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState("alex@gmail.com");
-  const [password, setPassword] = useState("password123");
+  const { signUp, fetchStatus } = useSignUp();
+  const { startSSOFlow } = useSSO();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignUp = () => {
-    setIsModalVisible(true);
+  const handleSignUp = async () => {
+    if (!email || !password || isLoading || fetchStatus === "fetching") return;
+    setErrorMessage("");
+    setIsLoading(true);
+
+    try {
+      const { error } = await signUp.password({
+        emailAddress: email,
+        password,
+      });
+
+      if (error) {
+        setErrorMessage(getErrorMessage(error));
+        setIsLoading(false);
+        return;
+      }
+
+      const { error: sendError } = await signUp.verifications.sendEmailCode();
+      if (sendError) {
+        setErrorMessage(getErrorMessage(sendError));
+        setIsLoading(false);
+        return;
+      }
+
+      setIsModalVisible(true);
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (code: string) => {
+    try {
+      const { error } = await signUp.verifications.verifyEmailCode({ code });
+      if (error) {
+        return { success: false, error: getErrorMessage(error) };
+      }
+
+      if (signUp.status === "complete") {
+        await signUp.finalize({
+          navigate: ({ decorateUrl }) => {
+            const url = decorateUrl("/");
+            if (url.startsWith("http")) {
+              window.location.href = url;
+            } else {
+              router.replace(url as any);
+            }
+          },
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: "Verification incomplete." };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
+    }
+  };
+
+  const handleResendCode = async () => {
+    const { error } = await signUp.verifications.sendEmailCode();
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const handleSocialAuth = async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
+    try {
+      setErrorMessage("");
+      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err));
+    }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 8,
+          paddingBottom: 24,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -61,6 +162,13 @@ export default function SignUpScreen() {
               resizeMode="contain"
             />
           </View>
+
+          {/* Error Message */}
+          {errorMessage ? (
+            <Text className="font-[Poppins-Medium] text-[13px] text-[#EF4444] text-center my-1">
+              {errorMessage}
+            </Text>
+          ) : null}
 
           {/* Form Fields */}
           <View className="gap-3.5 my-2">
@@ -113,11 +221,16 @@ export default function SignUpScreen() {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleSignUp}
+            disabled={isLoading || fetchStatus === "fetching"}
             className="bg-[#6C4EF5] rounded-2xl h-[56px] items-center justify-center mt-3 mb-5 shadow-md shadow-[#6C4EF5]"
           >
-            <Text className="text-white font-[Poppins-SemiBold] text-[17px]">
-              Sign Up
-            </Text>
+            {isLoading || fetchStatus === "fetching" ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text className="text-white font-[Poppins-SemiBold] text-[17px]">
+                Sign Up
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Divider */}
@@ -134,6 +247,7 @@ export default function SignUpScreen() {
             {/* Google */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_google")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -147,6 +261,7 @@ export default function SignUpScreen() {
             {/* Facebook */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_facebook")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -160,6 +275,7 @@ export default function SignUpScreen() {
             {/* Apple */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_apple")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -186,6 +302,9 @@ export default function SignUpScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Required mount point for Clerk Turnstile bot protection - must be visible */}
+        <View nativeID="clerk-captcha" style={{ width: "100%", minHeight: 65 }} />
       </ScrollView>
 
       {/* 6-Digit Email Verification Modal */}
@@ -193,6 +312,8 @@ export default function SignUpScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         email={email}
+        onVerifyCode={handleVerifyCode}
+        onResendCode={handleResendCode}
       />
     </SafeAreaView>
   );

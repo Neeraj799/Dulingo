@@ -1,7 +1,9 @@
+import { useSignIn, useSSO } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   ScrollView,
   Text,
@@ -13,19 +15,112 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { images } from "../../constants/images";
 import VerificationModal from "../components/VerificationModal";
 
+const getErrorMessage = (error: unknown): string => {
+  if (!error) return "An error occurred";
+  if (typeof error === "string") return error;
+  if (typeof error === "object") {
+    const err = error as Record<string, any>;
+    if (err.longMessage) return String(err.longMessage);
+    if (err.message) return String(err.message);
+    if (Array.isArray(err.errors) && err.errors[0]) {
+      return err.errors[0].longMessage || err.errors[0].message || "Sign in error";
+    }
+  }
+  return "An unexpected error occurred";
+};
+
 export default function SignInScreen() {
   const router = useRouter();
+  const { signIn, fetchStatus } = useSignIn();
+  const { startSSOFlow } = useSSO();
+
   const [email, setEmail] = useState("alex@gmail.com");
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = () => {
-    setIsModalVisible(true);
+  const handleSignIn = async () => {
+    if (!email || isLoading || fetchStatus === "fetching") return;
+    setErrorMessage("");
+    setIsLoading(true);
+
+    try {
+      const { error } = await signIn.emailCode.sendCode({
+        emailAddress: email,
+      });
+
+      if (error) {
+        setErrorMessage(getErrorMessage(error));
+        setIsLoading(false);
+        return;
+      }
+
+      setIsModalVisible(true);
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyCode = async (code: string) => {
+    try {
+      const { error } = await signIn.emailCode.verifyCode({ code });
+      if (error) {
+        return { success: false, error: getErrorMessage(error) };
+      }
+
+      if (signIn.status === "complete") {
+        await signIn.finalize({
+          navigate: ({ decorateUrl }) => {
+            const url = decorateUrl("/");
+            if (url.startsWith("http")) {
+              window.location.href = url;
+            } else {
+              router.replace(url as any);
+            }
+          },
+        });
+        return { success: true };
+      }
+
+      return { success: false, error: "Sign-in incomplete." };
+    } catch (err: unknown) {
+      return { success: false, error: getErrorMessage(err) };
+    }
+  };
+
+  const handleResendCode = async () => {
+    const { error } = await signIn.emailCode.sendCode({
+      emailAddress: email,
+    });
+    if (error) {
+      throw new Error(getErrorMessage(error));
+    }
+  };
+
+  const handleSocialAuth = async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
+    try {
+      setErrorMessage("");
+      const { createdSessionId, setActive } = await startSSOFlow({ strategy });
+      if (createdSessionId && setActive) {
+        await setActive({ session: createdSessionId });
+        router.replace("/");
+      }
+    } catch (err: unknown) {
+      setErrorMessage(getErrorMessage(err));
+    }
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       <ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: 24,
+          paddingTop: 8,
+          paddingBottom: 24,
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -60,6 +155,13 @@ export default function SignInScreen() {
             />
           </View>
 
+          {/* Error Message */}
+          {errorMessage ? (
+            <Text className="font-[Poppins-Medium] text-[13px] text-[#EF4444] text-center my-1">
+              {errorMessage}
+            </Text>
+          ) : null}
+
           {/* Form Fields - Email Only */}
           <View className="gap-3.5 my-2">
             {/* Email Field */}
@@ -83,11 +185,16 @@ export default function SignInScreen() {
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleSignIn}
+            disabled={isLoading || fetchStatus === "fetching"}
             className="bg-[#6C4EF5] rounded-2xl h-[56px] items-center justify-center mt-3 mb-5 shadow-md shadow-[#6C4EF5]"
           >
-            <Text className="text-white font-[Poppins-SemiBold] text-[17px]">
-              Sign In
-            </Text>
+            {isLoading || fetchStatus === "fetching" ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text className="text-white font-[Poppins-SemiBold] text-[17px]">
+                Sign In
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Divider */}
@@ -104,6 +211,7 @@ export default function SignInScreen() {
             {/* Google */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_google")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -117,6 +225,7 @@ export default function SignInScreen() {
             {/* Facebook */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_facebook")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -130,6 +239,7 @@ export default function SignInScreen() {
             {/* Apple */}
             <TouchableOpacity
               activeOpacity={0.8}
+              onPress={() => handleSocialAuth("oauth_apple")}
               className="bg-white border border-[#E5E7EB] rounded-2xl h-[52px] flex-row items-center justify-center px-4"
             >
               <View className="mr-2.5">
@@ -163,6 +273,8 @@ export default function SignInScreen() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         email={email}
+        onVerifyCode={handleVerifyCode}
+        onResendCode={handleResendCode}
       />
     </SafeAreaView>
   );
