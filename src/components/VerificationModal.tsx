@@ -1,6 +1,7 @@
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -17,15 +18,22 @@ interface VerificationModalProps {
   visible: boolean;
   onClose: () => void;
   email?: string;
+  onVerifyCode?: (code: string) => Promise<{ success: boolean; error?: string }>;
+  onResendCode?: () => Promise<void>;
 }
 
 export default function VerificationModal({
   visible,
   onClose,
   email = "alex@gmail.com",
+  onVerifyCode,
+  onResendCode,
 }: VerificationModalProps) {
   const router = useRouter();
   const [code, setCode] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [infoMsg, setInfoMsg] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   // Auto-focus when modal becomes visible
@@ -40,20 +48,63 @@ export default function VerificationModal({
 
   const handleClose = () => {
     setCode("");
+    setErrorMsg("");
+    setInfoMsg("");
+    setIsSubmitting(false);
     onClose();
   };
 
-  const handleCodeChange = (text: string) => {
+  const handleCodeChange = async (text: string) => {
     const numericText = text.replace(/[^0-9]/g, "").slice(0, 6);
     setCode(numericText);
+    setErrorMsg("");
+    setInfoMsg("");
 
-    // Automatically navigate when 6th digit is entered
+    // Automatically trigger verification when 6th digit is entered
     if (numericText.length === 6) {
-      Keyboard.dismiss();
-      setTimeout(() => {
-        handleClose();
-        router.push("/");
-      }, 300);
+      if (onVerifyCode) {
+        setIsSubmitting(true);
+        try {
+          const result = await onVerifyCode(numericText);
+          if (result.success) {
+            Keyboard.dismiss();
+            handleClose();
+            router.replace("/");
+          } else {
+            setErrorMsg(result.error || "Invalid verification code. Please try again.");
+            setCode("");
+            inputRef.current?.focus();
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "Verification failed";
+          setErrorMsg(message);
+          setCode("");
+          inputRef.current?.focus();
+        } finally {
+          setIsSubmitting(false);
+        }
+      } else {
+        // Fallback navigation if no custom handler provided
+        Keyboard.dismiss();
+        setTimeout(() => {
+          handleClose();
+          router.replace("/");
+        }, 300);
+      }
+    }
+  };
+
+  const handleResend = async () => {
+    if (!onResendCode || isSubmitting) return;
+    try {
+      setErrorMsg("");
+      setInfoMsg("Sending new code...");
+      await onResendCode();
+      setInfoMsg("A new verification code has been sent!");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to resend code";
+      setErrorMsg(message);
+      setInfoMsg("");
     }
   };
 
@@ -64,6 +115,9 @@ export default function VerificationModal({
       visible={visible}
       onRequestClose={handleClose}
       onShow={() => {
+        setCode("");
+        setErrorMsg("");
+        setInfoMsg("");
         inputRef.current?.focus();
       }}
     >
@@ -79,14 +133,19 @@ export default function VerificationModal({
                 onPress={handleClose}
                 activeOpacity={0.7}
                 className="self-end p-1.5 rounded-full bg-[#F3F4F6]"
+                disabled={isSubmitting}
               >
                 <Ionicons name="close" size={20} color="#6B7280" />
               </TouchableOpacity>
 
               {/* Title & Description */}
-              <View className="items-center mb-6">
+              <View className="items-center mb-5">
                 <View className="w-14 h-14 rounded-full bg-[#EEF2FF] justify-center items-center mb-3">
-                  <Ionicons name="mail-unread-outline" size={28} color="#6C4EF5" />
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#6C4EF5" />
+                  ) : (
+                    <Ionicons name="mail-unread-outline" size={28} color="#6C4EF5" />
+                  )}
                 </View>
                 <Text className="font-[Poppins-Bold] text-[22px] text-[#0D132B] mb-1.5 text-center">
                   Verify your email
@@ -98,6 +157,18 @@ export default function VerificationModal({
                   </Text>
                 </Text>
               </View>
+
+              {/* Error or Info Feedback Messages */}
+              {errorMsg ? (
+                <Text className="font-[Poppins-Medium] text-[13px] text-[#EF4444] text-center mb-3">
+                  {errorMsg}
+                </Text>
+              ) : null}
+              {infoMsg ? (
+                <Text className="font-[Poppins-Medium] text-[13px] text-[#21C16B] text-center mb-3">
+                  {infoMsg}
+                </Text>
+              ) : null}
 
               {/* Code Input Container */}
               <View className="w-full h-[56px] relative mb-6">
@@ -113,7 +184,9 @@ export default function VerificationModal({
                       <View
                         key={index}
                         className={`w-[46px] h-[54px] rounded-[14px] border-[1.5px] justify-center items-center ${
-                          digit
+                          errorMsg
+                            ? "border-[#EF4444] bg-[#FFF0F0]"
+                            : digit
                             ? "border-[#6C4EF5] bg-white"
                             : isFocused
                             ? "border-[#6C4EF5] bg-white shadow-sm shadow-[#6C4EF5]"
@@ -135,6 +208,7 @@ export default function VerificationModal({
                   onChangeText={handleCodeChange}
                   keyboardType="number-pad"
                   maxLength={6}
+                  editable={!isSubmitting}
                   className="absolute top-0 left-0 right-0 bottom-0 w-full h-full opacity-[0.01] z-10 text-[1px] text-transparent"
                   caretHidden={true}
                   autoFocus={true}
@@ -144,9 +218,11 @@ export default function VerificationModal({
 
               <Text className="font-[Poppins-Regular] text-[13px] text-[#6B7280] text-center">
                 {"Didn't receive the code? "}
-                <Text className="font-[Poppins-SemiBold] text-[#6C4EF5]">
-                  Resend
-                </Text>
+                <TouchableOpacity onPress={handleResend} disabled={isSubmitting}>
+                  <Text className="font-[Poppins-SemiBold] text-[#6C4EF5]">
+                    Resend
+                  </Text>
+                </TouchableOpacity>
               </Text>
             </View>
           </KeyboardAvoidingView>
