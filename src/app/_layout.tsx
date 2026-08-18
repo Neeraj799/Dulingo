@@ -5,6 +5,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { ClerkProvider, useAuth } from "@clerk/expo";
+import { useLanguageStore } from "@/store/useLanguageStore";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -53,22 +54,56 @@ function InitialLayout() {
   const segments = useSegments();
   const router = useRouter();
 
+  const selectedLanguageCode = useLanguageStore((s) => s.selectedLanguageCode);
+  const hasHydrated = useLanguageStore((s) => s.hasHydrated);
+
   useEffect(() => {
-    if (!isLoaded) return;
+    // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
+    if (!isLoaded || !hasHydrated) return;
 
     const currentSegment = segments[0] || "";
+
     const inAuthFlow =
       currentSegment === "onboarding" ||
       currentSegment === "sign-up" ||
       currentSegment === "sign-in" ||
       currentSegment === "sso-callback";
 
-    if (isSignedIn && inAuthFlow) {
-      router.replace("/");
-    } else if (!isSignedIn && !inAuthFlow) {
-      router.replace("/onboarding");
+    const inTabs = currentSegment === "(tabs)";
+    const inLanguageSelect = currentSegment === "language-select";
+
+    if (!isSignedIn) {
+      // Unauthenticated users always go to onboarding.
+      if (!inAuthFlow) {
+        router.replace("/onboarding");
+      }
+      return;
     }
-  }, [isLoaded, isSignedIn, segments, router]);
+
+    // Signed-in user.
+    if (inAuthFlow) {
+      // Just signed in — send them through the language gate.
+      if (selectedLanguageCode) {
+        router.replace("/(tabs)/home");
+      } else {
+        router.replace("/language-select");
+      }
+      return;
+    }
+
+    if (!selectedLanguageCode && !inLanguageSelect) {
+      // Signed-in but no language selected — force language selection.
+      router.replace("/language-select");
+      return;
+    }
+
+    if (selectedLanguageCode && !inTabs && !inLanguageSelect) {
+      // Signed-in with language — redirect to tabs.
+      router.replace("/(tabs)/home");
+    }
+
+    // Signed-in with a language set: allow free navigation (including /language-select to change).
+  }, [isLoaded, isSignedIn, segments, router, selectedLanguageCode, hasHydrated]);
 
   return (
     <Stack

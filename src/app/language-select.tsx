@@ -1,6 +1,7 @@
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
-import type { Language } from "@/types/learning";
+import { useLanguageStore } from "@/store/useLanguageStore";
+import type { Language, LanguageCode } from "@/types/learning";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -17,8 +18,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LanguageSelectScreen() {
   const router = useRouter();
+  const setSelectedLanguage = useLanguageStore((s) => s.setSelectedLanguage);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [selectedCode, setSelectedCode] = useState<LanguageCode | null>(null);
 
   const filteredLanguages = languages.filter((lang) => {
     const q = searchQuery.toLowerCase();
@@ -36,7 +38,8 @@ export default function LanguageSelectScreen() {
 
   const handleConfirm = () => {
     if (!selectedCode) return;
-    // TODO: persist selection via Zustand store
+    // Persist the chosen language to AsyncStorage via Zustand store.
+    setSelectedLanguage(selectedCode);
     router.replace("/");
   };
 
