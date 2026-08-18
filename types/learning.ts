@@ -16,7 +16,7 @@ export interface Language {
   code: LanguageCode;
   name: string;
   nativeName: string;
-  flag: string; // emoji flag
+  flag: string; // URL to a remote flag image, e.g. "https://flagcdn.com/w80/es.png"
   description: string;
   totalUnits: number;
   isAvailable: boolean;

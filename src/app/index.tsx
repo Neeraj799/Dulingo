@@ -1,7 +1,6 @@
 import { useClerk, useUser } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -23,8 +22,9 @@ export default function Index() {
         {user ? (
           <Text className="font-[Poppins-Medium] text-[16px] text-[#0D132B] text-center">
             Welcome back,{" "}
-            {user.primaryEmailAddress?.emailAddress ||
-              user.firstName ||
+            {user.firstName ||
+              user.fullName ||
+              user.primaryEmailAddress?.emailAddress ||
               "Learner"}
             !
           </Text>
