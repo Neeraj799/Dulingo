@@ -36,7 +36,7 @@ const buildStorage = () => {
 
   // Native: lazy-require SecureStore so the module is never evaluated on web.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require("expo-secure-store");
+  const SecureStore = require("expo-secure-store") as typeof import("expo-secure-store");
   return {
     getItem: (key: string): Promise<string | null> =>
       SecureStore.getItemAsync(key),

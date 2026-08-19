@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { type BottomTabBarProps } from "expo-router/tabs";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -12,18 +13,15 @@ type TabConfig = {
 };
 
 const TABS: TabConfig[] = [
-  { name: "home",       label: "Home",       icon: "home-outline",       iconActive: "home"        },
-  { name: "learn",      label: "Learn",      icon: "book-outline",       iconActive: "book"        },
-  { name: "ai-teacher", label: "AI Teacher", icon: "sparkles-outline",   iconActive: "sparkles"    },
+  { name: "home",       label: "Home",       icon: "home-outline",        iconActive: "home"        },
+  { name: "learn",      label: "Learn",      icon: "book-outline",        iconActive: "book"        },
+  { name: "ai-teacher", label: "AI Teacher", icon: "sparkles-outline",    iconActive: "sparkles"    },
   { name: "chat",       label: "Chat",       icon: "chatbubble-outline",  iconActive: "chatbubble"  },
-  { name: "profile",    label: "Profile",    icon: "person-outline",     iconActive: "person"      },
+  { name: "profile",    label: "Profile",    icon: "person-outline",      iconActive: "person"      },
 ];
 
 const LINGUA_PURPLE = "#6C4EF5";
-
-// Inline props type to avoid external package dependency
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CustomTabBarProps = any;
+const INACTIVE_COLOR = "#9CA3AF";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -31,18 +29,25 @@ export default function CustomTabBar({
   state,
   descriptors,
   navigation,
-}: CustomTabBarProps) {
+}: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
+    /*
+     * Static layout + color properties → className.
+     * Shadow properties (shadowColor / shadowOffset / shadowOpacity /
+     * shadowRadius / elevation) must stay in StyleSheet — platform-specific
+     * syntax is not expressible as a single className (exception rule).
+     * paddingBottom is runtime (safe-area insets) → inline style.
+     */
     <View
+      className="flex-row bg-white border-t border-[#F0F0F0] pt-[10px]"
       style={[
-        styles.container,
+        styles.shadow,
         { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
       ]}
     >
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      {state.routes.map((route: { key: string; name: string }, index: number) => {
+      {state.routes.map((route, index) => {
         const tabConfig = TABS.find((t) => t.name === route.name);
         if (!tabConfig) return null;
 
@@ -67,23 +72,30 @@ export default function CustomTabBar({
           <TouchableOpacity
             key={route.key}
             accessibilityRole="button"
-            accessibilityState={isFocused ? { selected: true } : {}}
+            accessibilityState={{ selected: isFocused }}
             accessibilityLabel={options.tabBarAccessibilityLabel ?? tabConfig.label}
             onPress={onPress}
             onLongPress={onLongPress}
             activeOpacity={0.75}
-            style={styles.tabItem}
+            className="flex-1 items-center justify-center gap-[3px]"
           >
+            {/* Icon color is runtime (active/inactive) → Ionicons color prop */}
             <Ionicons
               name={isFocused ? tabConfig.iconActive : tabConfig.icon}
               size={24}
-              color={isFocused ? LINGUA_PURPLE : "#9CA3AF"}
+              color={isFocused ? LINGUA_PURPLE : INACTIVE_COLOR}
             />
+            {/*
+             * fontFamily requires StyleSheet (custom font, not a Tailwind token).
+             * color is runtime → inline style.
+             * fontSize + textAlign are static → className.
+             */}
             <Text
+              className="text-[10px] text-center"
               style={[
-                styles.label,
-                { color: isFocused ? LINGUA_PURPLE : "#9CA3AF" },
-                isFocused && styles.labelActive,
+                styles.labelFont,
+                { color: isFocused ? LINGUA_PURPLE : INACTIVE_COLOR },
+                isFocused && styles.labelFontActive,
               ]}
               numberOfLines={1}
             >
@@ -96,33 +108,25 @@ export default function CustomTabBar({
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── StyleSheet ──────────────────────────────────────────────────────────────
+//
+// Only items that CANNOT be expressed as className remain here:
+//   shadow        — platform-specific shadow props (exception rule)
+//   labelFont     — custom fontFamily (Poppins-Regular) is not a Tailwind token
+//   labelFontActive — custom fontFamily (Poppins-SemiBold)
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#F0F0F0",
-    paddingTop: 10,
+  shadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 10,
   },
-  tabItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-  },
-  label: {
+  labelFont: {
     fontFamily: "Poppins-Regular",
-    fontSize: 10,
-    textAlign: "center",
   },
-  labelActive: {
+  labelFontActive: {
     fontFamily: "Poppins-SemiBold",
   },
 });

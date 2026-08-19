@@ -28,7 +28,6 @@ function buildTodaysPlan(
 ): PlanItem[] {
   if (!languageCode) return [];
 
-  const langUnits = units.filter((u) => u.languageCode === languageCode);
   const langLessons = lessons
     .filter((l) => l.languageCode === languageCode)
     .slice(0, 3);
@@ -58,10 +57,9 @@ function buildTodaysPlan(
   plan.push({
     id: "new-words",
     title: "New words",
-    subtitle:
-      langLessons[1]
-        ? `${langLessons[1].vocabulary?.length ?? 5} words`
-        : "5 words",
+    subtitle: langLessons[1]
+      ? `${langLessons[1].vocabulary?.length ?? 5} words`
+      : "5 words",
     iconName: "chatbubbles",
     iconBg: "#FF5B5B",
     completed: false,
@@ -87,14 +85,14 @@ export default function HomeScreen() {
     user?.fullName?.split(" ")[0] ||
     "Learner";
 
-  // Current lesson = first non-completed lesson for the language
   const currentUnit = units.find(
     (u) => u.languageCode === selectedLanguageCode
   );
   const allLangLessons = lessons.filter(
     (l) => l.languageCode === selectedLanguageCode
   );
-  const currentLesson =
+  // currentLesson retained for future use (lesson screen integration)
+  const _currentLesson =
     allLangLessons.find((l) => !completedLessonIds.includes(l.id)) ??
     allLangLessons[0];
   const currentUnitIndex = currentUnit ? currentUnit.order : 1;
@@ -102,7 +100,6 @@ export default function HomeScreen() {
   const todaysPlan = buildTodaysPlan(selectedLanguageCode, completedLessonIds);
   const xpProgress = Math.min(dailyXP / dailyXPGoal, 1);
 
-  // Greeting word in selected language
   const greetingWord =
     selectedLanguageCode === "es"
       ? "¡Hola"
@@ -113,7 +110,12 @@ export default function HomeScreen() {
       : "Hello";
 
   return (
+    // SafeAreaView: className not supported — keep inline style (exception rule)
     <SafeAreaView style={styles.safeArea}>
+      {/*
+        ScrollView: contentContainerStyle and style props are not className-able
+        on ScrollView (exception rule) — kept as StyleSheet refs.
+      */}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -124,13 +126,14 @@ export default function HomeScreen() {
           {/* Left: flag + greeting */}
           <View className="flex-row items-center gap-3">
             {selectedLanguage?.flag ? (
+              // expo-image: dimensions must stay in style prop
               <Image
                 source={{ uri: selectedLanguage.flag }}
                 style={styles.flagImage}
                 contentFit="cover"
               />
             ) : (
-              <View style={styles.flagPlaceholder} className="bg-[#E5E7EB] rounded-full items-center justify-center">
+              <View className="w-[42px] h-[42px] rounded-full bg-[#E5E7EB] items-center justify-center">
                 <Text className="text-[18px]">🌐</Text>
               </View>
             )}
@@ -142,6 +145,7 @@ export default function HomeScreen() {
           {/* Right: streak + bell */}
           <View className="flex-row items-center gap-4">
             <View className="flex-row items-center gap-1">
+              {/* expo-image: dimensions must stay in style prop */}
               <Image
                 source={images.streakFire}
                 style={styles.streakIcon}
@@ -151,14 +155,14 @@ export default function HomeScreen() {
                 {streak}
               </Text>
             </View>
-            <TouchableOpacity activeOpacity={0.7}>
+            <View>
               <Ionicons name="notifications-outline" size={24} color="#0D132B" />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         {/* ── Daily Goal Card ───────────────────────────────────────────────── */}
-        <View className="mx-5 mt-3 mb-4 rounded-3xl overflow-hidden" style={styles.goalCard}>
+        <View className="mx-5 mt-3 mb-4 rounded-3xl overflow-hidden bg-[#FDF6ED]">
           <View className="flex-row items-center justify-between px-5 py-5">
             {/* Text + bar */}
             <View className="flex-1 pr-4">
@@ -171,15 +175,16 @@ export default function HomeScreen() {
                   / {dailyXPGoal} XP
                 </Text>
               </Text>
-              {/* Progress bar */}
-              <View className="mt-3 rounded-full overflow-hidden" style={styles.progressTrack}>
+              {/* Progress bar track — static bg + height → className */}
+              <View className="mt-3 h-[10px] rounded-full overflow-hidden bg-[#EBD9C3]">
+                {/* Fill width is runtime (xpProgress) → inline style */}
                 <View
-                  className="rounded-full"
-                  style={[styles.progressFill, { width: `${xpProgress * 100}%` }]}
+                  className="h-[10px] rounded-full bg-[#FF8A00]"
+                  style={{ width: `${xpProgress * 100}%` }}
                 />
               </View>
             </View>
-            {/* Treasure image */}
+            {/* expo-image: dimensions must stay in style prop */}
             <Image
               source={images.treasure}
               style={styles.treasureImage}
@@ -190,8 +195,7 @@ export default function HomeScreen() {
 
         {/* ── Continue Learning Card ────────────────────────────────────────── */}
         {selectedLanguage && (
-          <View className="mx-5 mb-5 rounded-3xl overflow-hidden" style={styles.continueCard}>
-            {/* Content */}
+          <View className="mx-5 mb-5 rounded-3xl overflow-hidden bg-lingua-purple">
             <View className="flex-row items-stretch">
               <View className="flex-1 px-6 pt-5 pb-6 justify-between">
                 <View>
@@ -215,8 +219,9 @@ export default function HomeScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-              {/* Palace illustration */}
-              <View className="justify-end" style={styles.palaceContainer}>
+              {/* Palace illustration — w-[140px] overflow-hidden via className */}
+              <View className="w-[140px] overflow-hidden justify-end">
+                {/* expo-image: dimensions must stay in style prop */}
                 <Image
                   source={images.palace}
                   style={styles.palaceImage}
@@ -231,27 +236,36 @@ export default function HomeScreen() {
         <View className="px-5 mb-4">
           <View className="flex-row items-center justify-between mb-3">
             <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B]">
-              Today's plan
+              {"Today's plan"}
             </Text>
-            <TouchableOpacity activeOpacity={0.7}>
+            <View>
               <Text className="font-[Poppins-SemiBold] text-[14px] text-lingua-purple">
                 View all
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
 
           {/* Plan items */}
           <View className="gap-2">
-            {todaysPlan.map((item, idx) => (
+            {todaysPlan.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 activeOpacity={0.75}
                 className="flex-row items-center gap-4 py-3 px-1"
+                onPress={() => {
+                  if (item.id === "ai-conversation") {
+                    router.push("/(tabs)/ai-teacher");
+                  } else if (item.id === "new-words") {
+                    router.push("/(tabs)/chat");
+                  } else {
+                    router.push("/(tabs)/learn");
+                  }
+                }}
               >
-                {/* Icon */}
+                {/* Icon box — static w/h → className; bg is runtime → inline */}
                 <View
-                  className="items-center justify-center rounded-2xl"
-                  style={[styles.planIconBox, { backgroundColor: item.iconBg }]}
+                  className="w-[52px] h-[52px] items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: item.iconBg }}
                 >
                   <Ionicons name={item.iconName} size={22} color="#FFFFFF" />
                 </View>
@@ -266,19 +280,13 @@ export default function HomeScreen() {
                   </Text>
                 </View>
 
-                {/* Status */}
+                {/* Status indicator */}
                 {item.completed ? (
-                  <View
-                    className="items-center justify-center rounded-full bg-lingua-purple"
-                    style={styles.statusCircle}
-                  >
+                  <View className="w-[30px] h-[30px] items-center justify-center rounded-full bg-lingua-purple">
                     <Ionicons name="checkmark" size={16} color="#FFFFFF" />
                   </View>
                 ) : (
-                  <View
-                    className="rounded-full border-2 border-[#E5E7EB]"
-                    style={styles.statusCircle}
-                  />
+                  <View className="w-[30px] h-[30px] rounded-full border-2 border-[#E5E7EB]" />
                 )}
               </TouchableOpacity>
             ))}
@@ -291,6 +299,15 @@ export default function HomeScreen() {
 }
 
 // ─── StyleSheet ──────────────────────────────────────────────────────────────
+//
+// Only items that CANNOT be expressed as className remain here:
+//   safeArea     — SafeAreaView does not support className (exception rule)
+//   scroll       — ScrollView `style` prop (exception rule)
+//   scrollContent — ScrollView `contentContainerStyle` prop (exception rule)
+//   flagImage    — expo-image requires dimensions in `style` prop
+//   streakIcon   — expo-image requires dimensions in `style` prop
+//   treasureImage — expo-image requires dimensions in `style` prop
+//   palaceImage  — expo-image requires dimensions in `style` prop (+ negative margin)
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -303,12 +320,8 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 20,
   },
+  // expo-image dimensions
   flagImage: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-  },
-  flagPlaceholder: {
     width: 42,
     height: 42,
     borderRadius: 21,
@@ -317,42 +330,13 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
   },
-  // Daily goal card
-  goalCard: {
-    backgroundColor: "#FDF6ED",
-  },
-  progressTrack: {
-    height: 10,
-    backgroundColor: "#EBD9C3",
-  },
-  progressFill: {
-    height: 10,
-    backgroundColor: "#FF8A00",
-  },
   treasureImage: {
     width: 90,
     height: 90,
   },
-  // Continue learning card
-  continueCard: {
-    backgroundColor: "#6C4EF5",
-  },
-  palaceContainer: {
-    width: 140,
-    overflow: "hidden",
-  },
   palaceImage: {
     width: 140,
     height: 160,
-    marginBottom: -8,
-  },
-  // Plan items
-  planIconBox: {
-    width: 52,
-    height: 52,
-  },
-  statusCircle: {
-    width: 30,
-    height: 30,
+    marginBottom: -8, // negative margin not supported by NativeWind
   },
 });

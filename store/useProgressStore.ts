@@ -31,7 +31,7 @@ const buildStorage = () => {
 
   // Native: SecureStore for encrypted persistence.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require("expo-secure-store");
+  const SecureStore = require("expo-secure-store") as typeof import("expo-secure-store");
   return {
     getItem: (key: string): Promise<string | null> =>
       SecureStore.getItemAsync(key),
@@ -44,6 +44,8 @@ const buildStorage = () => {
 
 const storageAdapter = buildStorage();
 
+const getTodayDate = () => new Date().toISOString().split("T")[0];
+
 interface ProgressState {
   /** Total XP earned by the user */
   totalXP: number;
@@ -55,6 +57,8 @@ interface ProgressState {
   streak: number;
   /** IDs of lessons the user has completed */
   completedLessonIds: string[];
+  /** Date string (YYYY-MM-DD) when dailyXP was last updated or reset */
+  lastDailyXPDate: string;
   /** Actions */
   addXP: (amount: number) => void;
   completeLesson: (lessonId: string, xp: number) => void;
@@ -64,32 +68,58 @@ interface ProgressState {
 export const useProgressStore = create<ProgressState>()(
   persist(
     (set) => ({
-      totalXP: 15,
-      dailyXP: 15,
+      totalXP: 0,
+      dailyXP: 0,
       dailyXPGoal: 20,
-      streak: 12,
-      completedLessonIds: ["es-u1-l1"],
+      streak: 0,
+      completedLessonIds: [],
+      lastDailyXPDate: getTodayDate(),
 
       addXP: (amount: number) =>
-        set((s) => ({
-          totalXP: s.totalXP + amount,
-          dailyXP: s.dailyXP + amount,
-        })),
+        set((s) => {
+          const today = getTodayDate();
+          const isSameDay = s.lastDailyXPDate === today;
+          return {
+            totalXP: s.totalXP + amount,
+            dailyXP: isSameDay ? s.dailyXP + amount : amount,
+            lastDailyXPDate: today,
+          };
+        }),
 
       completeLesson: (lessonId: string, xp: number) =>
-        set((s) => ({
-          completedLessonIds: s.completedLessonIds.includes(lessonId)
-            ? s.completedLessonIds
-            : [...s.completedLessonIds, lessonId],
-          totalXP: s.totalXP + xp,
-          dailyXP: s.dailyXP + xp,
-        })),
+        set((s) => {
+          const today = getTodayDate();
+          const isSameDay = s.lastDailyXPDate === today;
+          return {
+            completedLessonIds: s.completedLessonIds.includes(lessonId)
+              ? s.completedLessonIds
+              : [...s.completedLessonIds, lessonId],
+            totalXP: s.totalXP + xp,
+            dailyXP: isSameDay ? s.dailyXP + xp : xp,
+            lastDailyXPDate: today,
+          };
+        }),
 
-      resetDailyXP: () => set({ dailyXP: 0 }),
+      resetDailyXP: () =>
+        set({
+          dailyXP: 0,
+          lastDailyXPDate: getTodayDate(),
+        }),
     }),
     {
       name: "dulingo_progress",
       storage: createJSONStorage(() => storageAdapter),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          const today = getTodayDate();
+          if (state.lastDailyXPDate !== today) {
+            useProgressStore.setState({
+              dailyXP: 0,
+              lastDailyXPDate: today,
+            });
+          }
+        }
+      },
     }
   )
 );
