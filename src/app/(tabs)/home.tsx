@@ -104,10 +104,10 @@ export default function HomeScreen() {
     selectedLanguageCode === "es"
       ? "¡Hola"
       : selectedLanguageCode === "fr"
-      ? "Bonjour"
-      : selectedLanguageCode === "ja"
-      ? "こんにちは"
-      : "Hello";
+        ? "Bonjour"
+        : selectedLanguageCode === "ja"
+          ? "こんにちは"
+          : "Hello";
 
   return (
     // SafeAreaView: className not supported — keep inline style (exception rule)
@@ -337,6 +337,6 @@ const styles = StyleSheet.create({
   palaceImage: {
     width: 140,
     height: 160,
-    marginBottom: -8, // negative margin not supported by NativeWind
+    marginBottom: -8,
   },
 });
