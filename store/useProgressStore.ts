@@ -44,7 +44,13 @@ const buildStorage = () => {
 
 const storageAdapter = buildStorage();
 
-const getTodayDate = () => new Date().toISOString().split("T")[0];
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 interface ProgressState {
   /** Total XP earned by the user */
@@ -88,12 +94,13 @@ export const useProgressStore = create<ProgressState>()(
 
       completeLesson: (lessonId: string, xp: number) =>
         set((s) => {
+          if (s.completedLessonIds.includes(lessonId)) {
+            return s;
+          }
           const today = getTodayDate();
           const isSameDay = s.lastDailyXPDate === today;
           return {
-            completedLessonIds: s.completedLessonIds.includes(lessonId)
-              ? s.completedLessonIds
-              : [...s.completedLessonIds, lessonId],
+            completedLessonIds: [...s.completedLessonIds, lessonId],
             totalXP: s.totalXP + xp,
             dailyXP: isSameDay ? s.dailyXP + xp : xp,
             lastDailyXPDate: today,
