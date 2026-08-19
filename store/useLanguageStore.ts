@@ -16,6 +16,15 @@ const STORAGE_KEY = "dulingo_selectedLanguage";
  * so Zustand persist can safely call any method on any platform.
  */
 const buildStorage = () => {
+  // SSR guard: window is undefined during Expo web server rendering.
+  if (typeof window === "undefined") {
+    return {
+      getItem: () => Promise.resolve(null),
+      setItem: () => Promise.resolve(),
+      removeItem: () => Promise.resolve(),
+    };
+  }
+
   if (Platform.OS === "web") {
     // AsyncStorage v3 ships a web implementation backed by localStorage.
     return {
@@ -27,7 +36,7 @@ const buildStorage = () => {
 
   // Native: lazy-require SecureStore so the module is never evaluated on web.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require("expo-secure-store");
+  const SecureStore = require("expo-secure-store") as typeof import("expo-secure-store");
   return {
     getItem: (key: string): Promise<string | null> =>
       SecureStore.getItemAsync(key),
@@ -77,7 +86,11 @@ export const useLanguageStore = create<LanguageState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => storageAdapter),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error("Failed to rehydrate language store:", error);
+          return;
+        }
         // Mark hydration complete so the layout guard can evaluate routing.
         useLanguageStore.setState({ hasHydrated: true });
       },
