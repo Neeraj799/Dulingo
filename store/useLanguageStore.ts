@@ -16,6 +16,15 @@ const STORAGE_KEY = "dulingo_selectedLanguage";
  * so Zustand persist can safely call any method on any platform.
  */
 const buildStorage = () => {
+  // SSR guard: window is undefined during Expo web server rendering.
+  if (typeof window === "undefined") {
+    return {
+      getItem: () => Promise.resolve(null),
+      setItem: () => Promise.resolve(),
+      removeItem: () => Promise.resolve(),
+    };
+  }
+
   if (Platform.OS === "web") {
     // AsyncStorage v3 ships a web implementation backed by localStorage.
     return {
