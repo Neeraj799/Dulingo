@@ -86,7 +86,11 @@ export const useLanguageStore = create<LanguageState>()(
     {
       name: STORAGE_KEY,
       storage: createJSONStorage(() => storageAdapter),
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error("Failed to rehydrate language store:", error);
+          return;
+        }
         // Mark hydration complete so the layout guard can evaluate routing.
         useLanguageStore.setState({ hasHydrated: true });
       },

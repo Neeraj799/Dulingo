@@ -125,7 +125,11 @@ export const useProgressStore = create<ProgressState>()(
     {
       name: "dulingo_progress",
       storage: createJSONStorage(() => storageAdapter),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("Failed to rehydrate progress store:", error);
+          return;
+        }
         if (state) {
           const today = getTodayDate();
           if (state.lastDailyXPDate !== today) {
