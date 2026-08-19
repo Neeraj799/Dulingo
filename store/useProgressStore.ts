@@ -75,7 +75,7 @@ interface ProgressState {
 
 export const useProgressStore = create<ProgressState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       totalXP: 0,
       dailyXP: 0,
       dailyXPGoal: 20,
@@ -84,9 +84,9 @@ export const useProgressStore = create<ProgressState>()(
       lastDailyXPDate: getTodayDate(),
       hasHydrated: false,
 
-      addXP: (amount: number) =>
+      addXP: (amount: number) => {
+        if (!get().hasHydrated) return;
         set((s) => {
-          if (!s.hasHydrated) return s;
           const today = getTodayDate();
           const isSameDay = s.lastDailyXPDate === today;
           return {
@@ -94,11 +94,12 @@ export const useProgressStore = create<ProgressState>()(
             dailyXP: isSameDay ? s.dailyXP + amount : amount,
             lastDailyXPDate: today,
           };
-        }),
+        });
+      },
 
-      completeLesson: (lessonId: string, xp: number) =>
+      completeLesson: (lessonId: string, xp: number) => {
+        if (!get().hasHydrated) return;
         set((s) => {
-          if (!s.hasHydrated) return s;
           if (s.completedLessonIds.includes(lessonId)) {
             return s;
           }
@@ -110,13 +111,16 @@ export const useProgressStore = create<ProgressState>()(
             dailyXP: isSameDay ? s.dailyXP + xp : xp,
             lastDailyXPDate: today,
           };
-        }),
+        });
+      },
 
-      resetDailyXP: () =>
+      resetDailyXP: () => {
+        if (!get().hasHydrated) return;
         set({
           dailyXP: 0,
           lastDailyXPDate: getTodayDate(),
-        }),
+        });
+      },
     }),
     {
       name: "dulingo_progress",
