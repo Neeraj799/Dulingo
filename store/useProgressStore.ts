@@ -65,6 +65,8 @@ interface ProgressState {
   completedLessonIds: string[];
   /** Date string (YYYY-MM-DD) when dailyXP was last updated or reset */
   lastDailyXPDate: string;
+  /** True once the persisted state has been rehydrated from storage. */
+  hasHydrated: boolean;
   /** Actions */
   addXP: (amount: number) => void;
   completeLesson: (lessonId: string, xp: number) => void;
@@ -80,9 +82,11 @@ export const useProgressStore = create<ProgressState>()(
       streak: 0,
       completedLessonIds: [],
       lastDailyXPDate: getTodayDate(),
+      hasHydrated: false,
 
       addXP: (amount: number) =>
         set((s) => {
+          if (!s.hasHydrated) return s;
           const today = getTodayDate();
           const isSameDay = s.lastDailyXPDate === today;
           return {
@@ -94,6 +98,7 @@ export const useProgressStore = create<ProgressState>()(
 
       completeLesson: (lessonId: string, xp: number) =>
         set((s) => {
+          if (!s.hasHydrated) return s;
           if (s.completedLessonIds.includes(lessonId)) {
             return s;
           }
@@ -126,6 +131,7 @@ export const useProgressStore = create<ProgressState>()(
             });
           }
         }
+        useProgressStore.setState({ hasHydrated: true });
       },
     }
   )
