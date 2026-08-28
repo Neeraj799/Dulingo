@@ -1,3 +1,4 @@
+import { posthog } from "@/config/posthog";
 import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
@@ -40,6 +41,9 @@ export default function LanguageSelectScreen() {
     if (!selectedCode) return;
     // Persist the chosen language to AsyncStorage via Zustand store.
     setSelectedLanguage(selectedCode);
+    posthog?.capture("language_selected", {
+      language_code: selectedCode,
+    });
     router.replace("/");
   };
 
@@ -148,7 +152,7 @@ export default function LanguageSelectScreen() {
               No languages found
             </Text>
             <Text className="font-[Poppins-Regular] text-[13px] text-[#6B7280] text-center">
-              Try searching in English or the native script, e.g. "Español" or "日本語".
+              Try searching in English or the native script, e.g. &quot;Español&quot; or &quot;日本語&quot;.
             </Text>
           </View>
         )}

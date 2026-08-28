@@ -1,10 +1,12 @@
 import "../../global.css";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
-import { ClerkProvider, useAuth } from "@clerk/expo";
+import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
+import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
+import { posthog } from "@/config/posthog";
 import { useLanguageStore } from "@/store/useLanguageStore";
 
 SplashScreen.preventAutoHideAsync();
@@ -48,6 +50,44 @@ const tokenCache = {
     }
   },
 };
+
+function PostHogIdentity() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
+  const identifiedUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!posthog || !isLoaded) return;
+
+    if (!isSignedIn) {
+      if (identifiedUserId.current) {
+        posthog.reset();
+        identifiedUserId.current = null;
+      }
+      return;
+    }
+
+    if (!user?.id || identifiedUserId.current === user.id) return;
+
+    const personProperties: Record<string, string> = {};
+    if (user.primaryEmailAddress?.emailAddress) {
+      personProperties.email = user.primaryEmailAddress.emailAddress;
+    }
+    if (user.fullName) {
+      personProperties.name = user.fullName;
+    }
+
+    posthog.identify(
+      user.id,
+      Object.keys(personProperties).length > 0
+        ? { $set: personProperties }
+        : undefined,
+    );
+    identifiedUserId.current = user.id;
+  }, [isLoaded, isSignedIn, user]);
+
+  return null;
+}
 
 function InitialLayout() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -132,9 +172,18 @@ export default function RootLayout() {
     return null;
   }
 
-  return (
+  const app = (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <PostHogIdentity />
       <InitialLayout />
     </ClerkProvider>
+  );
+
+  return posthog ? (
+    <PostHogProvider client={posthog}>
+      <PostHogErrorBoundary>{app}</PostHogErrorBoundary>
+    </PostHogProvider>
+  ) : (
+    app
   );
 }
