@@ -85,18 +85,12 @@ export default function CustomTabBar({
               size={24}
               color={isFocused ? LINGUA_PURPLE : INACTIVE_COLOR}
             />
-            {/*
-             * fontFamily requires StyleSheet (custom font, not a Tailwind token).
-             * color is runtime → inline style.
-             * fontSize + textAlign are static → className.
-             */}
             <Text
-              className="text-[10px] text-center"
-              style={[
-                styles.labelFont,
-                { color: isFocused ? LINGUA_PURPLE : INACTIVE_COLOR },
-                isFocused && styles.labelFontActive,
-              ]}
+              className={`text-[10px] text-center ${
+                isFocused
+                  ? "font-[Poppins-SemiBold] text-[#6C4EF5]"
+                  : "font-[Poppins-Regular] text-[#9CA3AF]"
+              }`}
               numberOfLines={1}
             >
               {tabConfig.label}
@@ -112,8 +106,6 @@ export default function CustomTabBar({
 //
 // Only items that CANNOT be expressed as className remain here:
 //   shadow        — platform-specific shadow props (exception rule)
-//   labelFont     — custom fontFamily (Poppins-Regular) is not a Tailwind token
-//   labelFontActive — custom fontFamily (Poppins-SemiBold)
 
 const styles = StyleSheet.create({
   shadow: {
@@ -122,11 +114,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 10,
-  },
-  labelFont: {
-    fontFamily: "Poppins-Regular",
-  },
-  labelFontActive: {
-    fontFamily: "Poppins-SemiBold",
   },
 });

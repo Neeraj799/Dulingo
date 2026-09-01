@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { posthog } from "@/config/posthog";
 import { images } from "@/constants/images";
 import { lessons } from "@/data/lessons";
 import { units } from "@/data/units";
@@ -109,6 +110,15 @@ export default function HomeScreen() {
           ? "こんにちは"
           : "Hello";
 
+  const openLearningDestination = (
+    destination: "lesson" | "ai_conversation" | "vocabulary_practice"
+  ) => {
+    posthog?.capture("learning_destination_opened", {
+      destination,
+      language_code: selectedLanguageCode,
+    });
+  };
+
   return (
     // SafeAreaView: className not supported — keep inline style (exception rule)
     <SafeAreaView style={styles.safeArea}>
@@ -211,7 +221,10 @@ export default function HomeScreen() {
                 </View>
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => router.push("/(tabs)/learn")}
+                  onPress={() => {
+                    openLearningDestination("lesson");
+                    router.push("/(tabs)/learn");
+                  }}
                   className="self-start mt-5 bg-white rounded-full px-6 py-2.5"
                 >
                   <Text className="font-[Poppins-SemiBold] text-[15px] text-lingua-purple">
@@ -238,11 +251,19 @@ export default function HomeScreen() {
             <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B]">
               {"Today's plan"}
             </Text>
-            <View>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="View all today's plan"
+              onPress={() => {
+                openLearningDestination("lesson");
+                router.push("/(tabs)/learn");
+              }}
+            >
               <Text className="font-[Poppins-SemiBold] text-[14px] text-lingua-purple">
                 View all
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Plan items */}
@@ -254,10 +275,13 @@ export default function HomeScreen() {
                 className="flex-row items-center gap-4 py-3 px-1"
                 onPress={() => {
                   if (item.id === "ai-conversation") {
+                    openLearningDestination("ai_conversation");
                     router.push("/(tabs)/ai-teacher");
                   } else if (item.id === "new-words") {
-                    router.push("/(tabs)/chat");
+                    openLearningDestination("vocabulary_practice");
+                    router.push("/(tabs)/learn");
                   } else {
+                    openLearningDestination("lesson");
                     router.push("/(tabs)/learn");
                   }
                 }}

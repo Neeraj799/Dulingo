@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { posthog } from "@/config/posthog";
 import { images } from "../../constants/images";
 import VerificationModal from "../components/VerificationModal";
 
@@ -65,6 +66,7 @@ export default function SignUpScreen() {
         return;
       }
 
+      posthog?.capture("sign_up_verification_requested");
       setIsModalVisible(true);
     } catch (err: unknown) {
       setErrorMessage(getErrorMessage(err));
@@ -81,6 +83,9 @@ export default function SignUpScreen() {
       }
 
       if (signUp.status === "complete") {
+        posthog?.capture("sign_up_completed", {
+          authentication_method: "email_password",
+        });
         await signUp.finalize({
           navigate: ({ decorateUrl }) => {
             const url = decorateUrl("/");
@@ -105,6 +110,7 @@ export default function SignUpScreen() {
     if (error) {
       throw new Error(getErrorMessage(error));
     }
+    posthog?.capture("sign_up_verification_resent");
   };
 
   const handleSocialAuth = async (strategy: "oauth_google" | "oauth_facebook" | "oauth_apple") => {
@@ -113,6 +119,9 @@ export default function SignUpScreen() {
       const { createdSessionId, setActive } = await startSSOFlow({ strategy });
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
+        posthog?.capture("sign_up_completed", {
+          authentication_method: strategy,
+        });
         router.replace("/");
       }
     } catch (err: unknown) {

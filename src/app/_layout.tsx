@@ -1,11 +1,11 @@
-import "../../global.css";
+import { useLanguageStore } from "@/store/useLanguageStore";
+import { ClerkProvider, useAuth } from "@clerk/expo";
+import { useFonts } from "expo-font";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { Platform } from "react-native";
-import { Stack, useRouter, useSegments } from "expo-router";
-import { useFonts } from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
-import { ClerkProvider, useAuth } from "@clerk/expo";
-import { useLanguageStore } from "@/store/useLanguageStore";
+import "../../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,6 +60,8 @@ function InitialLayout() {
   useEffect(() => {
     // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
     if (!isLoaded || !hasHydrated) return;
+
+    SplashScreen.hideAsync();
 
     const currentSegment = segments[0] || "";
 
@@ -122,19 +124,14 @@ export default function RootLayout() {
     "Poppins-Bold": require("../../assets/fonts/Poppins-Bold.ttf"),
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} >
       <InitialLayout />
     </ClerkProvider>
   );
 }
+
