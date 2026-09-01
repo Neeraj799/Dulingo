@@ -67,6 +67,7 @@ export interface MultipleChoiceActivity {
   question: string; // e.g. "What does 'hola' mean?"
   options: string[];
   correctAnswer: string;
+  answer?: string;
   hint?: string;
 }
 
@@ -74,6 +75,7 @@ export interface FillInBlankActivity {
   type: "fill_in_blank";
   sentence: string; // sentence with ____ placeholder
   correctAnswer: string;
+  answer?: string;
   hint?: string;
 }
 
@@ -87,6 +89,7 @@ export interface ListenAndSelectActivity {
   audioText: string; // text to be synthesised to speech
   options: string[];
   correctAnswer: string;
+  answer?: string;
 }
 
 export interface TranslateSentenceActivity {

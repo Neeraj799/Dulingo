@@ -1,4 +1,4 @@
-import type { Lesson } from "@/types/learning";
+import type { LanguageCode, Lesson, Unit } from "@/types/learning";
 import { getLanguageByCode } from "./languages";
 import { getUnitById } from "./units";
 
@@ -1137,10 +1137,15 @@ const DEFAULT_LESSON_TITLES = [
   "Family & Friends",
 ];
 
-function generateFallbackLesson(lessonId: string, unitId: string, order: number): Lesson {
-  const unit = getUnitById(unitId);
+function generateFallbackLesson(
+  lessonId: string,
+  unitId: string,
+  order: number,
+  unitContext?: Unit
+): Lesson {
+  const unit = unitContext ?? getUnitById(unitId);
   const rawCode = unitId.split("-")[0] || "";
-  const langCode = unit?.languageCode ?? getLanguageByCode(rawCode)?.code ?? (rawCode as any);
+  const langCode: LanguageCode = unit?.languageCode ?? getLanguageByCode(rawCode)?.code ?? "es";
   const title = DEFAULT_LESSON_TITLES[(order - 1) % DEFAULT_LESSON_TITLES.length] || `Lesson ${order}`;
 
   return {
@@ -1199,7 +1204,7 @@ export function getLessonsByUnit(unitId: string): Lesson[] {
   for (let i = 1; i <= 6; i++) {
     const expectedId = unit?.lessonIds?.[i - 1] ?? `${prefix}${i}`;
     if (!result.some((l) => l.id === expectedId || l.order === i)) {
-      result.push(generateFallbackLesson(expectedId, unitId, i));
+      result.push(generateFallbackLesson(expectedId, unitId, i, unit));
     }
   }
 
@@ -1223,7 +1228,13 @@ export function getLessonById(lessonId: string): Lesson | undefined {
   if (isNaN(unitNum) || isNaN(orderNum)) return undefined;
 
   const unitId = `${langCode}-unit-${unitNum}`;
-  return generateFallbackLesson(lessonId, unitId, orderNum);
+  const unit = getUnitById(unitId);
+  if (!unit) return undefined;
+
+  const maxLessons = unit.lessonIds?.length || unit.totalLessons || 6;
+  if (orderNum < 1 || orderNum > maxLessons) return undefined;
+
+  return generateFallbackLesson(lessonId, unitId, orderNum, unit);
 }
 
 /**

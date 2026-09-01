@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
@@ -9,7 +8,7 @@ const STORAGE_KEY = "dulingo_selectedLanguage";
 
 /**
  * Zustand-compatible storage adapter:
- *   - Web   → AsyncStorage (backed by localStorage via the installed v3 package)
+ *   - Web   → window.localStorage directly
  *   - Native → expo-secure-store (encrypted keychain / keystore)
  *
  * Both branches implement the full { getItem, setItem, removeItem } contract,

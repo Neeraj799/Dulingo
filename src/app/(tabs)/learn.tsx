@@ -50,14 +50,13 @@ const getLessonTopicImage = (lessonTitle: string, index: number) => {
 
 export default function LearnScreen() {
   const router = useRouter();
-  const { unitId } = useLocalSearchParams<{ unitId?: string }>();
+  const { unitId, lessonId } = useLocalSearchParams<{
+    unitId?: string;
+    lessonId?: string;
+  }>();
 
   const selectedLanguageCode = useLanguageStore((s) => s.selectedLanguageCode) || "es";
   const completedLessonIds = useProgressStore((s) => s.completedLessonIds);
-
-  const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
 
   // Get units for current language
   const languageUnits = getUnitsByLanguage(selectedLanguageCode);
@@ -69,6 +68,24 @@ export default function LearnScreen() {
 
   // Get lessons for active unit
   const unitLessons = getLessonsByUnit(activeUnit.id);
+
+  const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(() => {
+    if (lessonId) {
+      return unitLessons.find((l) => l.id === lessonId) || null;
+    }
+    return null;
+  });
+  const [prevLessonId, setPrevLessonId] = useState<string | undefined>(lessonId);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  if (lessonId !== prevLessonId) {
+    setPrevLessonId(lessonId);
+    if (lessonId) {
+      const match = unitLessons.find((l) => l.id === lessonId);
+      setSelectedLesson(match || null);
+    }
+  }
 
   // Completed lessons count in this unit
   const completedCountInUnit = unitLessons.filter((l) =>
@@ -277,9 +294,6 @@ export default function LearnScreen() {
                       <Text className="font-[Poppins-SemiBold] text-[16px] text-[#0D132B] mt-0.5">
                         {lesson.title}
                       </Text>
-                      <Text className="font-[Poppins-Regular] text-[12px] text-[#9CA3AF] mt-1">
-                        0 / 6 lessons
-                      </Text>
                     </View>
 
                     {/* Lock Icon in Gray Ring */}
@@ -307,7 +321,11 @@ export default function LearnScreen() {
               {/* Quick Review Card */}
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => handleLessonPress(unitLessons[0])}
+                onPress={() => {
+                  if (unitLessons[0]) {
+                    handleLessonPress(unitLessons[0]);
+                  }
+                }}
                 className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 flex-row items-center justify-between"
               >
                 <View className="flex-row items-center gap-3.5 flex-1">

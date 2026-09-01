@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   StyleSheet,
@@ -21,7 +21,6 @@ export default function AITeacherScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     lessonId?: string;
-    quizResolved?: string;
   }>();
 
   const selectedLanguageCode =
@@ -50,17 +49,26 @@ export default function AITeacherScreen() {
       : [
           {
             id: "default-1",
-            phrase: "¡Muy bien!",
-            translation: "That was great! 👏",
+            phrase: activeLesson?.aiTeacherPrompt?.openingMessage || "¡Hola! ¿Cómo estás?",
+            translation: "Hello! How are you?",
           },
           {
             id: "default-2",
-            phrase: activeLesson?.aiTeacherPrompt?.openingMessage || "¡Hola! ¿Cómo estás?",
-            translation: activeLesson?.aiTeacherPrompt?.openingMessage || "Hello! How are you?",
+            phrase: "¡Muy bien!",
+            translation: "That was great! 👏",
           },
         ];
 
   const currentPhrase = phrases[activePhraseIndex % phrases.length];
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      setIsPlayingAudio(false);
+    };
+  }, []);
 
   const handlePlayPhraseAudio = () => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -98,9 +106,11 @@ export default function AITeacherScreen() {
   };
 
   const handleFinishSession = () => {
-    const isResolved =
-      params.quizResolved === "true" ||
-      isLessonQuizResolved(activeLesson, null, completedLessonIds);
+    const isResolved = isLessonQuizResolved(
+      activeLesson,
+      null,
+      completedLessonIds
+    );
 
     if (activeLesson && isResolved) {
       completeLesson(activeLesson.id, activeLesson.xpReward || 15);

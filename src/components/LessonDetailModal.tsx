@@ -32,8 +32,7 @@ export function isLessonQuizResolved(
     return true;
   }
 
-  const expectedAnswer =
-    (activity as any).answer ?? (activity as any).correctAnswer;
+  const expectedAnswer = activity.answer ?? activity.correctAnswer;
   return Boolean(
     selectedOption !== undefined &&
       selectedOption !== null &&
@@ -71,9 +70,10 @@ function LessonDetailModalContent({
 
   const isCompleted = completedLessonIds.includes(lesson.id);
   const activity = lesson.activities?.[0];
-  const expectedAnswer = activity
-    ? (activity as any).answer ?? (activity as any).correctAnswer
-    : null;
+  const expectedAnswer =
+    activity && activity.type === "multiple_choice"
+      ? activity.answer ?? activity.correctAnswer
+      : null;
 
   const isQuizResolved = isLessonQuizResolved(
     lesson,
@@ -101,12 +101,14 @@ function LessonDetailModalContent({
   };
 
   const handleStartAudioLesson = () => {
+    if (isQuizResolved) {
+      completeLesson(lesson.id, lesson.xpReward);
+    }
     onClose();
     router.push({
       pathname: "/(tabs)/ai-teacher",
       params: {
         lessonId: lesson.id,
-        quizResolved: isQuizResolved ? "true" : "false",
       },
     });
   };

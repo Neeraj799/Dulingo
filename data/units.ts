@@ -239,10 +239,10 @@ export function getActiveUnitForLanguage(
       languageCode: languageCode,
       title: "At the Café",
       description: "Order coffee, snacks, and talk about food and drinks.",
-      order: 2,
+      order: 1,
       color: "#58CC02",
       icon: "☕",
-      totalLessons: 6,
+      totalLessons: 0,
       lessonIds: [],
     };
   }
