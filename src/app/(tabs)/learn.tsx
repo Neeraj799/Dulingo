@@ -9,10 +9,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { images } from "@/constants/images";
-import { getUnitsByLanguage } from "@/data/units";
+import { getActiveUnitForLanguage, getUnitsByLanguage } from "@/data/units";
 import { getLessonsByUnit } from "@/data/lessons";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
@@ -50,30 +50,22 @@ const getLessonTopicImage = (lessonTitle: string, index: number) => {
 
 export default function LearnScreen() {
   const router = useRouter();
+  const { unitId } = useLocalSearchParams<{ unitId?: string }>();
 
   const selectedLanguageCode = useLanguageStore((s) => s.selectedLanguageCode) || "es";
   const completedLessonIds = useProgressStore((s) => s.completedLessonIds);
 
   const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   // Get units for current language
   const languageUnits = getUnitsByLanguage(selectedLanguageCode);
   
-  // Pick active unit: Unit 2 / 3 or first unit (default to unit 2 if "At the Café" or unit 1)
+  // Pick active unit from navigation params or active-unit selection function
   const activeUnit: Unit =
-    languageUnits.find((u) => u.title.toLowerCase().includes("café") || u.order === 2) ||
-    languageUnits[0] || {
-      id: `${selectedLanguageCode}-unit-1`,
-      languageCode: selectedLanguageCode as any,
-      title: "At the Café",
-      description: "Order coffee, snacks, and talk about food and drinks.",
-      order: 3,
-      color: "#58CC02",
-      icon: "☕",
-      totalLessons: 6,
-      lessonIds: [],
-    };
+    (unitId ? languageUnits.find((u) => u.id === unitId) : undefined) ||
+    getActiveUnitForLanguage(selectedLanguageCode, completedLessonIds);
 
   // Get lessons for active unit
   const unitLessons = getLessonsByUnit(activeUnit.id);
@@ -92,10 +84,7 @@ export default function LearnScreen() {
     firstUncompletedIndex !== -1 ? firstUncompletedIndex : 2;
 
   const handleLessonPress = (lesson: Lesson) => {
-    router.push({
-      pathname: "/(tabs)/ai-teacher",
-      params: { lessonId: lesson.id },
-    });
+    setSelectedLesson(lesson);
   };
 
   const handleBack = () => {
@@ -136,9 +125,18 @@ export default function LearnScreen() {
           {/* Bookmark / Guidebook Button */}
           <TouchableOpacity
             activeOpacity={0.75}
-            className="w-9 h-10 rounded-xl bg-[#F4F2FD] border border-[#E0DAFB] items-center justify-center"
+            onPress={() => setIsBookmarked((prev) => !prev)}
+            className={`w-9 h-10 rounded-xl items-center justify-center border ${
+              isBookmarked
+                ? "bg-[#5B42F3] border-[#5B42F3]"
+                : "bg-[#F4F2FD] border-[#E0DAFB]"
+            }`}
           >
-            <Ionicons name="bookmark-outline" size={20} color="#5B42F3" />
+            <Ionicons
+              name={isBookmarked ? "bookmark" : "bookmark-outline"}
+              size={20}
+              color={isBookmarked ? "#FFFFFF" : "#5B42F3"}
+            />
           </TouchableOpacity>
         </View>
 
@@ -269,7 +267,7 @@ export default function LearnScreen() {
                   <TouchableOpacity
                     key={lesson.id}
                     activeOpacity={0.8}
-                    onPress={() => handleLessonPress(lesson)}
+                    disabled={true}
                     className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex-row items-center justify-between"
                   >
                     <View className="flex-1 pr-3">

@@ -26,11 +26,30 @@ const buildStorage = () => {
   }
 
   if (Platform.OS === "web") {
-    // AsyncStorage v3 ships a web implementation backed by localStorage.
     return {
-      getItem: (key: string) => AsyncStorage.getItem(key),
-      setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
-      removeItem: (key: string) => AsyncStorage.removeItem(key),
+      getItem: (key: string) => {
+        try {
+          return Promise.resolve(window.localStorage.getItem(key));
+        } catch {
+          return Promise.resolve(null);
+        }
+      },
+      setItem: (key: string, value: string) => {
+        try {
+          window.localStorage.setItem(key, value);
+          return Promise.resolve();
+        } catch {
+          return Promise.resolve();
+        }
+      },
+      removeItem: (key: string) => {
+        try {
+          window.localStorage.removeItem(key);
+          return Promise.resolve();
+        } catch {
+          return Promise.resolve();
+        }
+      },
     };
   }
 

@@ -1,4 +1,6 @@
 import type { Lesson } from "@/types/learning";
+import { getLanguageByCode } from "./languages";
+import { getUnitById } from "./units";
 
 /**
  * All lessons across all available languages.
@@ -1136,7 +1138,9 @@ const DEFAULT_LESSON_TITLES = [
 ];
 
 function generateFallbackLesson(lessonId: string, unitId: string, order: number): Lesson {
-  const langCode = (unitId.split("-")[0] || "es") as any;
+  const unit = getUnitById(unitId);
+  const rawCode = unitId.split("-")[0] || "";
+  const langCode = unit?.languageCode ?? getLanguageByCode(rawCode)?.code ?? (rawCode as any);
   const title = DEFAULT_LESSON_TITLES[(order - 1) % DEFAULT_LESSON_TITLES.length] || `Lesson ${order}`;
 
   return {
@@ -1147,10 +1151,10 @@ function generateFallbackLesson(lessonId: string, unitId: string, order: number)
     description: `Master ${title.toLowerCase()} in your target language with interactive exercises.`,
     type: order % 2 === 0 ? "phrases" : "vocabulary",
     order,
-    xpReward: 10 + order * 5,
+    xpReward: 0,
     goal: {
       description: `Complete ${title} practice exercises`,
-      xpReward: 10 + order * 5,
+      xpReward: 0,
     },
     vocabulary: [
       {
@@ -1171,15 +1175,7 @@ function generateFallbackLesson(lessonId: string, unitId: string, order: number)
         context: "Used in everyday conversations",
       },
     ],
-    activities: [
-      {
-        type: "multiple_choice",
-        question: `Which option translates "${title}"?`,
-        options: [title, "Incorrect 1", "Incorrect 2", "Incorrect 3"],
-        correctAnswer: title,
-        hint: "Select the correct title translation.",
-      },
-    ],
+    activities: [],
   };
 }
 
@@ -1195,10 +1191,13 @@ export function getLessonsByUnit(unitId: string): Lesson[] {
     return existing;
   }
 
+  const unit = getUnitById(unitId);
+  const prefix = unit?.lessonIds?.[0]?.replace(/\d+$/, "") ?? `${unitId}-l`;
+
   // Ensure 6 lessons per unit matching design titles
   const result: Lesson[] = [...existing];
   for (let i = 1; i <= 6; i++) {
-    const expectedId = `${unitId}-l${i}`;
+    const expectedId = unit?.lessonIds?.[i - 1] ?? `${prefix}${i}`;
     if (!result.some((l) => l.id === expectedId || l.order === i)) {
       result.push(generateFallbackLesson(expectedId, unitId, i));
     }
@@ -1214,20 +1213,23 @@ export function getLessonById(lessonId: string): Lesson | undefined {
   const existing = lessons.find((l) => l.id === lessonId);
   if (existing) return existing;
 
-  const parts = lessonId.split("-");
-  const orderNum = parseInt(parts[parts.length - 1]?.replace("l", "") || "1", 10);
-  const unitId = parts.slice(0, parts.length - 1).join("-");
-  return generateFallbackLesson(lessonId, unitId, isNaN(orderNum) ? 1 : orderNum);
+  const match = lessonId.match(/^([a-z]+)-u(\d+)-l(\d+)$/i);
+  if (!match) return undefined;
+
+  const langCode = match[1].toLowerCase();
+  const unitNum = parseInt(match[2], 10);
+  const orderNum = parseInt(match[3], 10);
+
+  if (isNaN(unitNum) || isNaN(orderNum)) return undefined;
+
+  const unitId = `${langCode}-unit-${unitNum}`;
+  return generateFallbackLesson(lessonId, unitId, orderNum);
 }
 
 /**
  * Get all lessons for a specific language.
  */
 export function getLessonsByLanguage(languageCode: string): Lesson[] {
-  const explicit = lessons.filter((l) => l.languageCode === languageCode);
-  if (explicit.length > 0) return explicit;
-
-  // Fallback to unit 1 & 2 generated lessons
   const u1 = getLessonsByUnit(`${languageCode}-unit-1`);
   const u2 = getLessonsByUnit(`${languageCode}-unit-2`);
   return [...u1, ...u2];

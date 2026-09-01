@@ -83,11 +83,11 @@ export default function SignUpScreen() {
       }
 
       if (signUp.status === "complete") {
-        posthog?.capture("sign_up_completed", {
-          authentication_method: "email_password",
-        });
         await signUp.finalize({
           navigate: ({ decorateUrl }) => {
+            posthog?.capture("sign_up_completed", {
+              authentication_method: "email_password",
+            });
             const url = decorateUrl("/");
             if (url.startsWith("http")) {
               window.location.href = url;

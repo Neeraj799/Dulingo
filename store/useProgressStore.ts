@@ -1,15 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 /**
- * SSR-safe storage adapter — mirrors the pattern used in useLanguageStore.
+ * SSR-safe and cross-platform storage adapter.
  *
- * During server-side rendering (Expo web), `window` is not defined, so
- * AsyncStorage's localStorage-backed implementation throws. We provide a
- * no-op adapter for the SSR pass; on native and client-side web it uses
- * the proper AsyncStorage implementation.
+ * On Web: uses window.localStorage directly (if window is defined) to avoid
+ * null native module errors with @react-native-async-storage/async-storage.
+ * On Native: uses @react-native-async-storage/async-storage with try-catch guards.
+ * On SSR / window undefined: returns a safe no-op adapter.
  */
 const buildStorage = () => {
   // SSR guard: window is undefined during server rendering.
@@ -21,10 +21,57 @@ const buildStorage = () => {
     };
   }
 
+  if (Platform.OS === "web") {
+    return {
+      getItem: (key: string) => {
+        try {
+          return Promise.resolve(window.localStorage.getItem(key));
+        } catch {
+          return Promise.resolve(null);
+        }
+      },
+      setItem: (key: string, value: string) => {
+        try {
+          window.localStorage.setItem(key, value);
+          return Promise.resolve();
+        } catch {
+          return Promise.resolve();
+        }
+      },
+      removeItem: (key: string) => {
+        try {
+          window.localStorage.removeItem(key);
+          return Promise.resolve();
+        } catch {
+          return Promise.resolve();
+        }
+      },
+    };
+  }
+
   return {
-    getItem: (key: string) => AsyncStorage.getItem(key),
-    setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
-    removeItem: (key: string) => AsyncStorage.removeItem(key),
+    getItem: async (key: string) => {
+      try {
+        return await AsyncStorage.getItem(key);
+      } catch (e) {
+        console.warn("AsyncStorage getItem error:", e);
+        return null;
+      }
+    },
+    setItem: async (key: string, value: string) => {
+      try {
+        await AsyncStorage.setItem(key, value);
+      } catch (e) {
+        console.warn("AsyncStorage setItem error:", e);
+      }
+    },
+    removeItem: async (key: string) => {
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch (e) {
+        console.warn("AsyncStorage removeItem error:", e);
+      }
+    },
   };
 };
 

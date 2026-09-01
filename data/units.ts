@@ -1,4 +1,4 @@
-import type { Unit } from "@/types/learning";
+import type { LanguageCode, Unit } from "@/types/learning";
 
 /**
  * All units across all available languages.
@@ -30,11 +30,11 @@ export const units: Unit[] = [
   {
     id: "es-unit-2",
     languageCode: "es",
-    title: "At the Café",
-    description: "Order coffee, snacks, and talk about food and drinks.",
+    title: "Numbers & Colors",
+    description: "Learn numbers 1 to 20 and common colors in Spanish.",
     order: 2,
     color: "#1CB0F6",
-    icon: "☕",
+    icon: "🔢",
     totalLessons: 6,
     lessonIds: ["es-u2-l1", "es-u2-l2", "es-u2-l3", "es-u2-l4", "es-u2-l5", "es-u2-l6"],
   },
@@ -211,7 +211,7 @@ export const units: Unit[] = [
 /**
  * Get all units for a specific language, sorted by order.
  */
-export function getUnitsByLanguage(languageCode: string): Unit[] {
+export function getUnitsByLanguage(languageCode: LanguageCode): Unit[] {
   return units
     .filter((u) => u.languageCode === languageCode)
     .sort((a, b) => a.order - b.order);
@@ -222,4 +222,34 @@ export function getUnitsByLanguage(languageCode: string): Unit[] {
  */
 export function getUnitById(unitId: string): Unit | undefined {
   return units.find((u) => u.id === unitId);
+}
+
+/**
+ * Get active unit for a language based on user's completed lesson progress.
+ */
+export function getActiveUnitForLanguage(
+  languageCode: LanguageCode,
+  completedLessonIds: string[] = []
+): Unit {
+  const languageUnits = getUnitsByLanguage(languageCode);
+
+  if (languageUnits.length === 0) {
+    return {
+      id: `${languageCode}-unit-1`,
+      languageCode: languageCode,
+      title: "At the Café",
+      description: "Order coffee, snacks, and talk about food and drinks.",
+      order: 2,
+      color: "#58CC02",
+      icon: "☕",
+      totalLessons: 6,
+      lessonIds: [],
+    };
+  }
+
+  return (
+    languageUnits.find((u) =>
+      u.lessonIds.some((id) => !completedLessonIds.includes(id))
+    ) || languageUnits[languageUnits.length - 1]
+  );
 }

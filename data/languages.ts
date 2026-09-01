@@ -46,7 +46,7 @@ export const languages: Language[] = [
     flag: "https://flagcdn.com/w80/kr.png",
     description: "K-pop, K-drama, and one of the most logical writing systems ever invented.",
     totalUnits: 2,
-    isAvailable: true,
+    isAvailable: false,
     learnerCount: "9.3M learners",
   },
   {
@@ -56,7 +56,7 @@ export const languages: Language[] = [
     flag: "https://flagcdn.com/w80/de.png",
     description: "Precise, logical, and powerful — the most spoken native language in Europe.",
     totalUnits: 2,
-    isAvailable: true,
+    isAvailable: false,
     learnerCount: "8.1M learners",
   },
   {
@@ -66,7 +66,7 @@ export const languages: Language[] = [
     flag: "https://flagcdn.com/w80/cn.png",
     description: "Mandarin Chinese — the most spoken language on Earth, full of history and nuance.",
     totalUnits: 2,
-    isAvailable: true,
+    isAvailable: false,
     learnerCount: "7.4M learners",
   },
   {
@@ -76,7 +76,7 @@ export const languages: Language[] = [
     flag: "https://flagcdn.com/w80/pt.png",
     description: "Warm, rhythmic, and spoken by 260 million people from Brazil to Portugal.",
     totalUnits: 2,
-    isAvailable: true,
+    isAvailable: false,
     learnerCount: "6.2M learners",
   },
   {
@@ -86,7 +86,7 @@ export const languages: Language[] = [
     flag: "https://flagcdn.com/w80/it.png",
     description: "The language of opera, pasta, and Renaissance art — musical in every syllable.",
     totalUnits: 2,
-    isAvailable: true,
+    isAvailable: false,
     learnerCount: "4.8M learners",
   },
 ];

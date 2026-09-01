@@ -12,17 +12,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { images } from "@/constants/images";
+import { isLessonQuizResolved } from "@/components/LessonDetailModal";
 import { getLessonById, getLessonsByLanguage } from "@/data/lessons";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 
 export default function AITeacherScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ lessonId?: string }>();
+  const params = useLocalSearchParams<{
+    lessonId?: string;
+    quizResolved?: string;
+  }>();
 
   const selectedLanguageCode =
     useLanguageStore((s) => s.selectedLanguageCode) || "es";
   const completeLesson = useProgressStore((s) => s.completeLesson);
+  const completedLessonIds = useProgressStore((s) => s.completedLessonIds);
 
   // Fetch lesson data by ID or fallback to first available lesson for selected language
   const defaultLesson = getLessonsByLanguage(selectedLanguageCode)[0];
@@ -51,15 +56,33 @@ export default function AITeacherScreen() {
           {
             id: "default-2",
             phrase: activeLesson?.aiTeacherPrompt?.openingMessage || "¡Hola! ¿Cómo estás?",
-            translation: "Hello! How are you?",
+            translation: activeLesson?.aiTeacherPrompt?.openingMessage || "Hello! How are you?",
           },
         ];
 
   const currentPhrase = phrases[activePhraseIndex % phrases.length];
 
   const handlePlayPhraseAudio = () => {
-    setIsPlayingAudio(true);
-    setTimeout(() => setIsPlayingAudio(false), 1200);
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const textToSpeak = currentPhrase?.phrase;
+      if (!textToSpeak) {
+        setIsPlayingAudio(false);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.lang = selectedLanguageCode;
+      utterance.onend = () => {
+        setIsPlayingAudio(false);
+      };
+      utterance.onerror = () => {
+        setIsPlayingAudio(false);
+      };
+      setIsPlayingAudio(true);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      setIsPlayingAudio(false);
+    }
   };
 
   const handleNextPhrase = () => {
@@ -75,7 +98,11 @@ export default function AITeacherScreen() {
   };
 
   const handleFinishSession = () => {
-    if (activeLesson) {
+    const isResolved =
+      params.quizResolved === "true" ||
+      isLessonQuizResolved(activeLesson, null, completedLessonIds);
+
+    if (activeLesson && isResolved) {
       completeLesson(activeLesson.id, activeLesson.xpReward || 15);
     }
     setShowEndCallModal(false);
@@ -124,10 +151,10 @@ export default function AITeacherScreen() {
               />
             </TouchableOpacity>
 
-            {/* Session Timer / Counter Pill */}
-            <View className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white">
-              <Text className="font-[Poppins-Bold] text-[14px] text-[#0D132B]">
-                12
+            {/* Session Phrase Progress Counter Pill */}
+            <View className="px-2.5 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white min-w-[40px]">
+              <Text className="font-[Poppins-Bold] text-[12px] text-[#0D132B]">
+                {activePhraseIndex + 1}/{phrases.length}
               </Text>
             </View>
 
@@ -264,7 +291,7 @@ export default function AITeacherScreen() {
                 activeOpacity={0.8}
                 onPress={() => setShowSubtitles((prev) => !prev)}
                 className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
-                  showSubtitles ? "bg-white border-2 border-[#5B42F3]" : "bg-slate-200"
+                  showSubtitles ? "bg-[#FFFFFF] border-2 border-[#5B42F3]" : "bg-slate-200"
                 }`}
               >
                 <Ionicons
@@ -294,36 +321,48 @@ export default function AITeacherScreen() {
           </View>
         </View>
 
-        {/* ── Session Feedback Metrics Card ───────────────────────────────── */}
-        <View className="mt-3.5 bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex-row items-center justify-between shadow-sm">
-          {/* Column 1: Speaking */}
-          <View className="flex-1 items-center justify-center border-r border-[#F3F4F6] pr-2">
-            <Text className="font-[Poppins-Bold] text-[13px] text-[#0D132B]">
-              Speaking
+        {/* ── Session Feedback Metrics Card (Preview) ─────────────────────── */}
+        <View className="mt-3.5 bg-white border border-[#E5E7EB] rounded-2xl p-3 shadow-sm">
+          <View className="flex-row items-center justify-between mb-2 pb-1.5 border-b border-[#F3F4F6]">
+            <Text className="font-[Poppins-SemiBold] text-[12px] text-[#6B7280]">
+              Session Feedback
             </Text>
-            <Text className="font-[Poppins-Bold] text-[14px] text-[#22C55E] mt-0.5">
-              Excellent
-            </Text>
+            <View className="bg-[#F3F4F6] px-2 py-0.5 rounded-full">
+              <Text className="font-[Poppins-Medium] text-[10px] text-[#6B7280]">
+                PREVIEW
+              </Text>
+            </View>
           </View>
+          <View className="flex-row items-center justify-between">
+            {/* Column 1: Speaking */}
+            <View className="flex-1 items-center justify-center border-r border-[#F3F4F6] pr-2">
+              <Text className="font-[Poppins-Bold] text-[12px] text-[#0D132B]">
+                Speaking
+              </Text>
+              <Text className="font-[Poppins-Medium] text-[12px] text-[#9CA3AF] mt-0.5">
+                Preview
+              </Text>
+            </View>
 
-          {/* Column 2: Pronunciation */}
-          <View className="flex-1 items-center justify-center border-r border-[#F3F4F6] px-2">
-            <Text className="font-[Poppins-Bold] text-[13px] text-[#0D132B]">
-              Pronunciation
-            </Text>
-            <Text className="font-[Poppins-Bold] text-[14px] text-[#3B82F6] mt-0.5">
-              Great
-            </Text>
-          </View>
+            {/* Column 2: Pronunciation */}
+            <View className="flex-1 items-center justify-center border-r border-[#F3F4F6] px-2">
+              <Text className="font-[Poppins-Bold] text-[12px] text-[#0D132B]">
+                Pronunciation
+              </Text>
+              <Text className="font-[Poppins-Medium] text-[12px] text-[#9CA3AF] mt-0.5">
+                Preview
+              </Text>
+            </View>
 
-          {/* Column 3: Grammar */}
-          <View className="flex-1 items-center justify-center pl-2">
-            <Text className="font-[Poppins-Bold] text-[13px] text-[#0D132B]">
-              Grammar
-            </Text>
-            <Text className="font-[Poppins-Bold] text-[14px] text-[#8B5CF6] mt-0.5">
-              Good
-            </Text>
+            {/* Column 3: Grammar */}
+            <View className="flex-1 items-center justify-center pl-2">
+              <Text className="font-[Poppins-Bold] text-[12px] text-[#0D132B]">
+                Grammar
+              </Text>
+              <Text className="font-[Poppins-Medium] text-[12px] text-[#9CA3AF] mt-0.5">
+                Preview
+              </Text>
+            </View>
           </View>
         </View>
       </View>
