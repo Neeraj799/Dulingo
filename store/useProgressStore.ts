@@ -2,6 +2,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, Platform } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { getLessonById, getLessonsByUnit } from "@/data/lessons";
+import { getLanguageByCode } from "@/data/languages";
 
 /**
  * SSR-safe and cross-platform storage adapter.
@@ -185,6 +187,18 @@ export const useProgressStore = create<ProgressState>()(
         }
         set((s) => {
           if (s.completedLessonIds.includes(lessonId)) {
+            return s;
+          }
+          const lesson = getLessonById(lessonId);
+          if (!lesson) {
+            return s;
+          }
+          const lang = getLanguageByCode(lesson.languageCode);
+          if (lang && lang.isAvailable === false) {
+            return s;
+          }
+          const unitLessons = getLessonsByUnit(lesson.unitId);
+          if (unitLessons.length === 0) {
             return s;
           }
           const updates = calculateXPUpdate(s, xp);

@@ -101,9 +101,6 @@ function LessonDetailModalContent({
   };
 
   const handleStartAudioLesson = () => {
-    if (isQuizResolved) {
-      completeLesson(lesson.id, lesson.xpReward);
-    }
     onClose();
     router.push({
       pathname: "/(tabs)/ai-teacher",
@@ -123,14 +120,20 @@ function LessonDetailModalContent({
       timerRef.current = null;
     }
 
+    const wasAlreadyCompleted = isCompleted;
     completeLesson(lesson.id, lesson.xpReward);
-    setIsJustCompleted(true);
 
-    timerRef.current = setTimeout(() => {
-      setIsJustCompleted(false);
+    if (!wasAlreadyCompleted) {
+      setIsJustCompleted(true);
+
+      timerRef.current = setTimeout(() => {
+        setIsJustCompleted(false);
+        onClose();
+        timerRef.current = null;
+      }, 1200);
+    } else {
       onClose();
-      timerRef.current = null;
-    }, 1200);
+    }
   };
 
   return (
@@ -305,7 +308,7 @@ function LessonDetailModalContent({
                         {v.exampleSentence && (
                           <View className="bg-[#F8FAFC] border border-[#F1F5F9] rounded-xl p-3 mt-3 flex-row items-start gap-2">
                             <Ionicons name="chatbox-ellipses-outline" size={15} color="#94A3B8" style={{ marginTop: 2 }} />
-                            <Text className="font-[Poppins-MediumItalic] text-[13px] text-[#334155] flex-1 leading-snug">
+                            <Text className="font-[Poppins-Medium] italic text-[13px] text-[#334155] flex-1 leading-snug">
                               &quot;{v.exampleSentence}&quot;
                             </Text>
                           </View>

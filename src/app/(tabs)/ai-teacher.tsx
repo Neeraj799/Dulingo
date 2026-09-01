@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,9 +11,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Speech from "expo-speech";
 
 import { images } from "@/constants/images";
-import { isLessonQuizResolved } from "@/components/LessonDetailModal";
 import { getLessonById, getLessonsByLanguage } from "@/data/lessons";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
@@ -26,7 +27,6 @@ export default function AITeacherScreen() {
   const selectedLanguageCode =
     useLanguageStore((s) => s.selectedLanguageCode) || "es";
   const completeLesson = useProgressStore((s) => s.completeLesson);
-  const completedLessonIds = useProgressStore((s) => s.completedLessonIds);
 
   // Fetch lesson data by ID or fallback to first available lesson for selected language
   const defaultLesson = getLessonsByLanguage(selectedLanguageCode)[0];
@@ -39,6 +39,9 @@ export default function AITeacherScreen() {
   const [isMicOn, setIsMicOn] = useState(true);
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [activePhraseIndex, setActivePhraseIndex] = useState(0);
+  const [visitedPhraseIndices, setVisitedPhraseIndices] = useState<Set<number>>(
+    () => new Set([0])
+  );
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showEndCallModal, setShowEndCallModal] = useState(false);
 
@@ -66,12 +69,13 @@ export default function AITeacherScreen() {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      Speech.stop();
       setIsPlayingAudio(false);
     };
   }, []);
 
   const handlePlayPhraseAudio = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    if (Platform.OS === "web" && typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       const textToSpeak = currentPhrase?.phrase;
       if (!textToSpeak) {
@@ -89,12 +93,34 @@ export default function AITeacherScreen() {
       setIsPlayingAudio(true);
       window.speechSynthesis.speak(utterance);
     } else {
-      setIsPlayingAudio(false);
+      const textToSpeak = currentPhrase?.phrase;
+      if (!textToSpeak) {
+        setIsPlayingAudio(false);
+        return;
+      }
+      setIsPlayingAudio(true);
+      Speech.stop();
+      Speech.speak(textToSpeak, {
+        language: selectedLanguageCode,
+        onDone: () => {
+          setIsPlayingAudio(false);
+        },
+        onError: () => {
+          setIsPlayingAudio(false);
+        },
+        onStopped: () => {
+          setIsPlayingAudio(false);
+        },
+      });
     }
   };
 
   const handleNextPhrase = () => {
-    setActivePhraseIndex((prev) => (prev + 1) % phrases.length);
+    setActivePhraseIndex((prev) => {
+      const nextIndex = (prev + 1) % phrases.length;
+      setVisitedPhraseIndices((visited) => new Set(visited).add(nextIndex));
+      return nextIndex;
+    });
   };
 
   const handleBack = () => {
@@ -105,14 +131,11 @@ export default function AITeacherScreen() {
     }
   };
 
-  const handleFinishSession = () => {
-    const isResolved = isLessonQuizResolved(
-      activeLesson,
-      null,
-      completedLessonIds
-    );
+  const isSessionComplete =
+    phrases.length > 0 && visitedPhraseIndices.size >= phrases.length;
 
-    if (activeLesson && isResolved) {
+  const handleFinishSession = () => {
+    if (activeLesson && isSessionComplete) {
       completeLesson(activeLesson.id, activeLesson.xpReward || 15);
     }
     setShowEndCallModal(false);
@@ -128,6 +151,8 @@ export default function AITeacherScreen() {
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             className="w-10 h-10 rounded-full items-center justify-center -ml-2"
           >
             <Ionicons name="chevron-back" size={26} color="#0D132B" />
@@ -152,6 +177,9 @@ export default function AITeacherScreen() {
             <TouchableOpacity
               activeOpacity={0.75}
               onPress={() => setIsCameraOn((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel={isCameraOn ? "Turn camera off" : "Turn camera on"}
+              accessibilityState={{ checked: isCameraOn, selected: isCameraOn }}
               className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
             >
               <Ionicons
@@ -171,6 +199,9 @@ export default function AITeacherScreen() {
             {/* User Profile Avatar Pill */}
             <TouchableOpacity
               activeOpacity={0.75}
+              onPress={() => router.push("/(tabs)/profile")}
+              accessibilityRole="button"
+              accessibilityLabel="Go to profile"
               className="w-10 h-10 rounded-full border border-[#E5E7EB] items-center justify-center bg-white"
             >
               <Ionicons name="person-outline" size={18} color="#0D132B" />
@@ -218,6 +249,8 @@ export default function AITeacherScreen() {
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={handleNextPhrase}
+              accessibilityRole="button"
+              accessibilityLabel="Next phrase"
               className="mb-4 z-20"
             >
               <View className="bg-white rounded-2xl p-4 shadow-lg border border-slate-100/80 relative">
@@ -235,6 +268,9 @@ export default function AITeacherScreen() {
                   <TouchableOpacity
                     activeOpacity={0.75}
                     onPress={handlePlayPhraseAudio}
+                    accessibilityRole="button"
+                    accessibilityLabel={isPlayingAudio ? "Audio playing" : "Play phrase audio"}
+                    accessibilityState={{ checked: isPlayingAudio, selected: isPlayingAudio }}
                     className={`w-10 h-10 rounded-full items-center justify-center ${
                       isPlayingAudio ? "bg-[#5B42F3]" : "bg-[#F4F2FD]"
                     }`}
@@ -260,6 +296,9 @@ export default function AITeacherScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => setIsCameraOn((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isCameraOn ? "Turn camera off" : "Turn camera on"}
+                accessibilityState={{ checked: isCameraOn, selected: isCameraOn }}
                 className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
                   isCameraOn ? "bg-white" : "bg-slate-200"
                 }`}
@@ -280,6 +319,9 @@ export default function AITeacherScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => setIsMicOn((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={isMicOn ? "Mute microphone" : "Unmute microphone"}
+                accessibilityState={{ checked: isMicOn, selected: isMicOn }}
                 className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
                   isMicOn ? "bg-white border-2 border-[#5B42F3]" : "bg-slate-200"
                 }`}
@@ -300,6 +342,9 @@ export default function AITeacherScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => setShowSubtitles((prev) => !prev)}
+                accessibilityRole="button"
+                accessibilityLabel={showSubtitles ? "Hide subtitles" : "Show subtitles"}
+                accessibilityState={{ checked: showSubtitles, selected: showSubtitles }}
                 className={`w-14 h-14 rounded-full items-center justify-center shadow-md ${
                   showSubtitles ? "bg-[#FFFFFF] border-2 border-[#5B42F3]" : "bg-slate-200"
                 }`}
@@ -320,6 +365,8 @@ export default function AITeacherScreen() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() => setShowEndCallModal(true)}
+                accessibilityRole="button"
+                accessibilityLabel="End call"
                 className="w-14 h-14 rounded-full bg-[#FF4D4D] items-center justify-center shadow-md"
               >
                 <Ionicons name="call" size={24} color="#FFFFFF" style={{ transform: [{ rotate: "135deg" }] }} />
@@ -395,23 +442,29 @@ export default function AITeacherScreen() {
             </Text>
 
             <Text className="font-[Poppins-Regular] text-[14px] text-[#6B7280] text-center mt-1.5 mb-6">
-              You will complete this session and earn +{activeLesson?.xpReward || 15} XP!
+              {isSessionComplete
+                ? `You will complete this session and earn +${activeLesson?.xpReward || 15} XP!`
+                : "You will complete this session without earning XP."}
             </Text>
 
             <View className="w-full gap-2.5">
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={handleFinishSession}
+                accessibilityRole="button"
+                accessibilityLabel={isSessionComplete ? "Finish and save XP" : "Finish session"}
                 className="w-full bg-[#5B42F3] py-3.5 rounded-2xl items-center justify-center shadow-sm"
               >
                 <Text className="font-[Poppins-Bold] text-[16px] text-white">
-                  Finish & Save XP
+                  {isSessionComplete ? "Finish & Save XP" : "Finish Session"}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => setShowEndCallModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Continue lesson"
                 className="w-full py-3 rounded-2xl items-center justify-center"
               >
                 <Text className="font-[Poppins-Medium] text-[14px] text-[#6B7280]">

@@ -74,10 +74,16 @@ export default function SignInScreen() {
 
       if (signIn.status === "complete") {
         await signIn.finalize({
-          navigate: ({ decorateUrl }) => {
+          navigate: async ({ decorateUrl }) => {
             posthog?.capture("sign_in_completed", {
               authentication_method: "email_code",
             });
+            if (posthog) {
+              await Promise.race([
+                posthog.flush(),
+                new Promise((resolve) => setTimeout(resolve, 1000)),
+              ]).catch(() => {});
+            }
             const url = decorateUrl("/");
             if (url.startsWith("http")) {
               window.location.href = url;

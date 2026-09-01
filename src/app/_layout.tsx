@@ -58,10 +58,14 @@ function InitialLayout() {
   const hasHydrated = useLanguageStore((s) => s.hasHydrated);
 
   useEffect(() => {
+    if (isLoaded && hasHydrated) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isLoaded, hasHydrated]);
+
+  useEffect(() => {
     // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
     if (!isLoaded || !hasHydrated) return;
-
-    SplashScreen.hideAsync();
 
     const currentSegment = segments[0] || "";
 

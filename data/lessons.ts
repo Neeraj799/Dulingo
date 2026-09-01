@@ -1,6 +1,4 @@
-import type { LanguageCode, Lesson, Unit } from "@/types/learning";
-import { getLanguageByCode } from "./languages";
-import { getUnitById } from "./units";
+import type { Lesson } from "@/types/learning";
 
 /**
  * All lessons across all available languages.
@@ -1127,121 +1125,30 @@ export const lessons: Lesson[] = [
   },
 ];
 
-// Default lesson templates for matching 06-lesson-screen.png titles
-const DEFAULT_LESSON_TITLES = [
-  "Greetings & Introductions",
-  "Daily Life",
-  "At the Café",
-  "Travel & Directions",
-  "Shopping",
-  "Family & Friends",
-];
-
-function generateFallbackLesson(
-  lessonId: string,
-  unitId: string,
-  order: number,
-  unitContext?: Unit
-): Lesson {
-  const unit = unitContext ?? getUnitById(unitId);
-  const rawCode = unitId.split("-")[0] || "";
-  const langCode: LanguageCode = unit?.languageCode ?? getLanguageByCode(rawCode)?.code ?? "es";
-  const title = DEFAULT_LESSON_TITLES[(order - 1) % DEFAULT_LESSON_TITLES.length] || `Lesson ${order}`;
-
-  return {
-    id: lessonId,
-    unitId,
-    languageCode: langCode,
-    title,
-    description: `Master ${title.toLowerCase()} in your target language with interactive exercises.`,
-    type: order % 2 === 0 ? "phrases" : "vocabulary",
-    order,
-    xpReward: 0,
-    goal: {
-      description: `Complete ${title} practice exercises`,
-      xpReward: 0,
-    },
-    vocabulary: [
-      {
-        id: `${lessonId}-vocab-1`,
-        word: "Practice Word",
-        translation: "Translation",
-        pronunciation: "pronunciation",
-        exampleSentence: "Example practice sentence.",
-        exampleTranslation: "English translation of example sentence.",
-        imageHint: "practice lesson item",
-      },
-    ],
-    phrases: [
-      {
-        id: `${lessonId}-phrase-1`,
-        phrase: "Common Expression",
-        translation: "Common Expression Translation",
-        context: "Used in everyday conversations",
-      },
-    ],
-    activities: [],
-  };
-}
-
 /**
  * Get all lessons for a specific unit.
+ * Returns only authored lessons for that unit.
  */
 export function getLessonsByUnit(unitId: string): Lesson[] {
-  const existing = lessons
+  return lessons
     .filter((l) => l.unitId === unitId)
     .sort((a, b) => a.order - b.order);
-
-  if (existing.length >= 6) {
-    return existing;
-  }
-
-  const unit = getUnitById(unitId);
-  const prefix = unit?.lessonIds?.[0]?.replace(/\d+$/, "") ?? `${unitId}-l`;
-
-  // Ensure 6 lessons per unit matching design titles
-  const result: Lesson[] = [...existing];
-  for (let i = 1; i <= 6; i++) {
-    const expectedId = unit?.lessonIds?.[i - 1] ?? `${prefix}${i}`;
-    if (!result.some((l) => l.id === expectedId || l.order === i)) {
-      result.push(generateFallbackLesson(expectedId, unitId, i, unit));
-    }
-  }
-
-  return result.sort((a, b) => a.order - b.order);
 }
 
 /**
  * Get a single lesson by its ID.
+ * Returns only authored lessons.
  */
 export function getLessonById(lessonId: string): Lesson | undefined {
-  const existing = lessons.find((l) => l.id === lessonId);
-  if (existing) return existing;
-
-  const match = lessonId.match(/^([a-z]+)-u(\d+)-l(\d+)$/i);
-  if (!match) return undefined;
-
-  const langCode = match[1].toLowerCase();
-  const unitNum = parseInt(match[2], 10);
-  const orderNum = parseInt(match[3], 10);
-
-  if (isNaN(unitNum) || isNaN(orderNum)) return undefined;
-
-  const unitId = `${langCode}-unit-${unitNum}`;
-  const unit = getUnitById(unitId);
-  if (!unit) return undefined;
-
-  const maxLessons = unit.lessonIds?.length || unit.totalLessons || 6;
-  if (orderNum < 1 || orderNum > maxLessons) return undefined;
-
-  return generateFallbackLesson(lessonId, unitId, orderNum, unit);
+  return lessons.find((l) => l.id === lessonId);
 }
 
 /**
  * Get all lessons for a specific language.
+ * Returns only authored lessons.
  */
 export function getLessonsByLanguage(languageCode: string): Lesson[] {
-  const u1 = getLessonsByUnit(`${languageCode}-unit-1`);
-  const u2 = getLessonsByUnit(`${languageCode}-unit-2`);
-  return [...u1, ...u2];
+  return lessons
+    .filter((l) => l.languageCode === languageCode)
+    .sort((a, b) => a.order - b.order);
 }
