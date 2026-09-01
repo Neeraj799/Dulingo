@@ -17,6 +17,10 @@ import treasure from "../assets/images/treasure.png";
 import tutorialWeb from "../assets/images/tutorial-web.png";
 import tabExplore from "../assets/images/tabIcons/explore.png";
 import tabHome from "../assets/images/tabIcons/home.png";
+import lessonCafeBanner from "../assets/images/lesson-cafe-banner.png";
+import lessonCafeIcon from "../assets/images/lesson-cafe-icon.png";
+
+import userPreviewAvatar from "../assets/images/user-preview-avatar.png";
 
 export const images = {
   androidIconBackground,
@@ -28,6 +32,8 @@ export const images = {
   expoLogo,
   favicon,
   icon,
+  lessonCafeBanner,
+  lessonCafeIcon,
   logoGlow,
   mascotAuth,
   mascotWelcome,
@@ -36,6 +42,7 @@ export const images = {
   streakFire,
   treasure,
   tutorialWeb,
+  userPreviewAvatar,
   tab: {
     explore: tabExplore,
     home: tabHome,
