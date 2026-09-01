@@ -77,10 +77,10 @@ export const useLanguageStore = create<LanguageState>()(
         set({ selectedLanguageCode: code }),
 
       clearSelectedLanguage: async () => {
+        // Reset in-memory state first.
+        set({ selectedLanguageCode: null });
         // Remove from the configured storage adapter (works on all platforms).
         await useLanguageStore.persist.clearStorage();
-        // Reset in-memory state after storage is cleared.
-        set({ selectedLanguageCode: null });
       },
     }),
     {
@@ -89,7 +89,6 @@ export const useLanguageStore = create<LanguageState>()(
       onRehydrateStorage: () => (_state, error) => {
         if (error) {
           console.error("Failed to rehydrate language store:", error);
-          return;
         }
         // Mark hydration complete so the layout guard can evaluate routing.
         useLanguageStore.setState({ hasHydrated: true });

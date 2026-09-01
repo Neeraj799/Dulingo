@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { AppState } from "react-native";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -21,28 +21,22 @@ const buildStorage = () => {
     };
   }
 
-  if (Platform.OS === "web") {
-    return {
-      getItem: (key: string) => AsyncStorage.getItem(key),
-      setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
-      removeItem: (key: string) => AsyncStorage.removeItem(key),
-    };
-  }
-
-  // Native: SecureStore for encrypted persistence.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require("expo-secure-store") as typeof import("expo-secure-store");
   return {
-    getItem: (key: string): Promise<string | null> =>
-      SecureStore.getItemAsync(key),
-    setItem: (key: string, value: string): Promise<void> =>
-      SecureStore.setItemAsync(key, value),
-    removeItem: (key: string): Promise<void> =>
-      SecureStore.deleteItemAsync(key),
+    getItem: (key: string) => AsyncStorage.getItem(key),
+    setItem: (key: string, value: string) => AsyncStorage.setItem(key, value),
+    removeItem: (key: string) => AsyncStorage.removeItem(key),
   };
 };
 
 const storageAdapter = buildStorage();
+
+let pendingActions: Array<() => void> = [];
+
+const flushPendingActions = () => {
+  const actions = pendingActions;
+  pendingActions = [];
+  actions.forEach((action) => action());
+};
 
 const getTodayDate = () => {
   const d = new Date();
@@ -50,6 +44,45 @@ const getTodayDate = () => {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const getDaysDifference = (dateStr1: string, dateStr2: string) => {
+  if (!dateStr1 || !dateStr2) return 0;
+  const d1 = new Date(dateStr1 + "T00:00:00");
+  const d2 = new Date(dateStr2 + "T00:00:00");
+  const diffTime = d2.getTime() - d1.getTime();
+  return Math.round(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const calculateXPUpdate = (
+  s: { dailyXP: number; streak: number; lastDailyXPDate: string },
+  xp: number
+) => {
+  const today = getTodayDate();
+  const diffDays = getDaysDifference(s.lastDailyXPDate, today);
+  let newDailyXP: number;
+  let newStreak: number;
+  let newLastDailyXPDate = today;
+
+  if (diffDays <= 0) {
+    newDailyXP = s.dailyXP + xp;
+    newStreak = s.streak === 0 ? 1 : s.streak;
+    if (diffDays < 0 && s.lastDailyXPDate) {
+      newLastDailyXPDate = s.lastDailyXPDate;
+    }
+  } else if (diffDays === 1) {
+    newDailyXP = xp;
+    newStreak = s.streak + 1;
+  } else {
+    newDailyXP = xp;
+    newStreak = 1;
+  }
+
+  return {
+    dailyXP: newDailyXP,
+    streak: newStreak,
+    lastDailyXPDate: newLastDailyXPDate,
+  };
 };
 
 interface ProgressState {
@@ -85,40 +118,44 @@ export const useProgressStore = create<ProgressState>()(
       hasHydrated: false,
 
       addXP: (amount: number) => {
-        if (!get().hasHydrated) return;
+        if (!get().hasHydrated) {
+          pendingActions.push(() => get().addXP(amount));
+          return;
+        }
         set((s) => {
-          const today = getTodayDate();
-          const isSameDay = s.lastDailyXPDate === today;
+          const updates = calculateXPUpdate(s, amount);
           return {
             totalXP: s.totalXP + amount,
-            dailyXP: isSameDay ? s.dailyXP + amount : amount,
-            lastDailyXPDate: today,
+            ...updates,
           };
         });
       },
 
       completeLesson: (lessonId: string, xp: number) => {
-        if (!get().hasHydrated) return;
+        if (!get().hasHydrated) {
+          pendingActions.push(() => get().completeLesson(lessonId, xp));
+          return;
+        }
         set((s) => {
           if (s.completedLessonIds.includes(lessonId)) {
             return s;
           }
-          const today = getTodayDate();
-          const isSameDay = s.lastDailyXPDate === today;
+          const updates = calculateXPUpdate(s, xp);
           return {
             completedLessonIds: [...s.completedLessonIds, lessonId],
             totalXP: s.totalXP + xp,
-            dailyXP: isSameDay ? s.dailyXP + xp : xp,
-            lastDailyXPDate: today,
+            ...updates,
           };
         });
       },
 
       resetDailyXP: () => {
-        if (!get().hasHydrated) return;
+        if (!get().hasHydrated) {
+          pendingActions.push(() => get().resetDailyXP());
+          return;
+        }
         set({
           dailyXP: 0,
-          lastDailyXPDate: getTodayDate(),
         });
       },
     }),
@@ -128,19 +165,48 @@ export const useProgressStore = create<ProgressState>()(
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           console.error("Failed to rehydrate progress store:", error);
+          useProgressStore.setState({ hasHydrated: true });
+          flushPendingActions();
           return;
         }
         if (state) {
-          const today = getTodayDate();
-          if (state.lastDailyXPDate !== today) {
-            useProgressStore.setState({
-              dailyXP: 0,
-              lastDailyXPDate: today,
-            });
-          }
+          reconcileProgressState(state);
         }
         useProgressStore.setState({ hasHydrated: true });
+        flushPendingActions();
       },
     }
   )
 );
+
+export function reconcileProgressState(targetState?: {
+  lastDailyXPDate: string;
+  streak: number;
+  dailyXP: number;
+  hasHydrated?: boolean;
+}) {
+  const currentState = targetState ?? useProgressStore.getState();
+  if (!currentState || !currentState.lastDailyXPDate) return;
+  if (!targetState && !currentState.hasHydrated) return;
+
+  const today = getTodayDate();
+  const diffDays = getDaysDifference(currentState.lastDailyXPDate, today);
+  if (diffDays > 0) {
+    const updatedStreak = diffDays === 1 ? currentState.streak : 0;
+    if (currentState.dailyXP !== 0 || currentState.streak !== updatedStreak) {
+      useProgressStore.setState({
+        dailyXP: 0,
+        streak: updatedStreak,
+      });
+    }
+  }
+}
+
+if (typeof window !== "undefined") {
+  AppState.addEventListener("change", (nextAppState) => {
+    if (nextAppState === "active") {
+      reconcileProgressState();
+    }
+  });
+}
+

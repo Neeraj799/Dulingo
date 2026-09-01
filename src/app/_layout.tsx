@@ -1,13 +1,11 @@
-import "../../global.css";
-import { useEffect, useRef } from "react";
-import { Platform } from "react-native";
-import { Stack, useRouter, useSegments } from "expo-router";
-import { useFonts } from "expo-font";
-import * as SplashScreen from "expo-splash-screen";
-import { ClerkProvider, useAuth, useUser } from "@clerk/expo";
-import { PostHogErrorBoundary, PostHogProvider } from "posthog-react-native";
-import { posthog } from "@/config/posthog";
 import { useLanguageStore } from "@/store/useLanguageStore";
+import { ClerkProvider, useAuth } from "@clerk/expo";
+import { useFonts } from "expo-font";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { Platform } from "react-native";
+import "../../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -51,44 +49,6 @@ const tokenCache = {
   },
 };
 
-function PostHogIdentity() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
-  const identifiedUserId = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!posthog || !isLoaded) return;
-
-    if (!isSignedIn) {
-      if (identifiedUserId.current) {
-        posthog.reset();
-        identifiedUserId.current = null;
-      }
-      return;
-    }
-
-    if (!user?.id || identifiedUserId.current === user.id) return;
-
-    const personProperties: Record<string, string> = {};
-    if (user.primaryEmailAddress?.emailAddress) {
-      personProperties.email = user.primaryEmailAddress.emailAddress;
-    }
-    if (user.fullName) {
-      personProperties.name = user.fullName;
-    }
-
-    posthog.identify(
-      user.id,
-      Object.keys(personProperties).length > 0
-        ? { $set: personProperties }
-        : undefined,
-    );
-    identifiedUserId.current = user.id;
-  }, [isLoaded, isSignedIn, user]);
-
-  return null;
-}
-
 function InitialLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   const segments = useSegments();
@@ -100,6 +60,8 @@ function InitialLayout() {
   useEffect(() => {
     // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
     if (!isLoaded || !hasHydrated) return;
+
+    SplashScreen.hideAsync();
 
     const currentSegment = segments[0] || "";
 
@@ -162,28 +124,14 @@ export default function RootLayout() {
     "Poppins-Bold": require("../../assets/fonts/Poppins-Bold.ttf"),
   });
 
-  useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
-
   if (!fontsLoaded && !fontError) {
     return null;
   }
 
-  const app = (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <PostHogIdentity />
+  return (
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} >
       <InitialLayout />
     </ClerkProvider>
   );
-
-  return posthog ? (
-    <PostHogProvider client={posthog}>
-      <PostHogErrorBoundary>{app}</PostHogErrorBoundary>
-    </PostHogProvider>
-  ) : (
-    app
-  );
 }
+

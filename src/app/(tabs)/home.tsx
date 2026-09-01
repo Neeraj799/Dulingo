@@ -251,11 +251,19 @@ export default function HomeScreen() {
             <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B]">
               {"Today's plan"}
             </Text>
-            <View>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel="View all today's plan"
+              onPress={() => {
+                openLearningDestination("lesson");
+                router.push("/(tabs)/learn");
+              }}
+            >
               <Text className="font-[Poppins-SemiBold] text-[14px] text-lingua-purple">
                 View all
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Plan items */}
@@ -271,7 +279,7 @@ export default function HomeScreen() {
                     router.push("/(tabs)/ai-teacher");
                   } else if (item.id === "new-words") {
                     openLearningDestination("vocabulary_practice");
-                    router.push("/(tabs)/chat");
+                    router.push("/(tabs)/learn");
                   } else {
                     openLearningDestination("lesson");
                     router.push("/(tabs)/learn");

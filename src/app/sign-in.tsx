@@ -73,6 +73,9 @@ export default function SignInScreen() {
       }
 
       if (signIn.status === "complete") {
+        posthog?.capture("sign_in_completed", {
+          authentication_method: "email_code",
+        });
         await signIn.finalize({
           navigate: ({ decorateUrl }) => {
             const url = decorateUrl("/");
@@ -82,9 +85,6 @@ export default function SignInScreen() {
               router.replace(url as any);
             }
           },
-        });
-        posthog?.capture("sign_in_completed", {
-          authentication_method: "email_code",
         });
         return { success: true };
       }
