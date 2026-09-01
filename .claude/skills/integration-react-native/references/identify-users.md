@@ -70,7 +70,7 @@ When a user starts browsing your website or app, PostHog automatically assigns t
 
 Provided you've [configured persistence](/docs/libraries/js/persistence.md) to use cookies or `localStorage`, this enables us to track anonymous users – even across different sessions.
 
-By calling `identify` with a `distinct_id` of your choice (usually the user's ID in your database, or their email), you link the anonymous ID and distinct ID together.
+By calling `identify` with an opaque, immutable internal user ID from your database as the `distinct_id` (and storing values like email only in person properties), you link the anonymous ID and distinct ID together.
 
 Thus, all past and future events made with that anonymous ID are now associated with the distinct ID.
 
@@ -193,7 +193,7 @@ See our [person properties docs](#4-person-profiles-and-properties) for more det
 
 ### 5\. Use deep links between platforms
 
-We recommend you call `identify` [as soon as you're able](#1-call-identify-as-soon-as-youre-able), typically when a user signs up or logs in.
+We recommend you call `identify` [as soon as you're able](#1-call-identify-as-soon-as-youre-able-to), typically when a user signs up or logs in.
 
 This doesn't work if one or both platforms are unauthenticated. Some examples of such cases are:
 

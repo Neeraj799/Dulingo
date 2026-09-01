@@ -32,8 +32,7 @@ export function isLessonQuizResolved(
     return true;
   }
 
-  const expectedAnswer =
-    (activity as any).answer ?? (activity as any).correctAnswer;
+  const expectedAnswer = activity.answer ?? activity.correctAnswer;
   return Boolean(
     selectedOption !== undefined &&
       selectedOption !== null &&
@@ -71,9 +70,10 @@ function LessonDetailModalContent({
 
   const isCompleted = completedLessonIds.includes(lesson.id);
   const activity = lesson.activities?.[0];
-  const expectedAnswer = activity
-    ? (activity as any).answer ?? (activity as any).correctAnswer
-    : null;
+  const expectedAnswer =
+    activity && activity.type === "multiple_choice"
+      ? activity.answer ?? activity.correctAnswer
+      : null;
 
   const isQuizResolved = isLessonQuizResolved(
     lesson,
@@ -106,7 +106,6 @@ function LessonDetailModalContent({
       pathname: "/(tabs)/ai-teacher",
       params: {
         lessonId: lesson.id,
-        quizResolved: isQuizResolved ? "true" : "false",
       },
     });
   };
@@ -121,14 +120,20 @@ function LessonDetailModalContent({
       timerRef.current = null;
     }
 
+    const wasAlreadyCompleted = isCompleted;
     completeLesson(lesson.id, lesson.xpReward);
-    setIsJustCompleted(true);
 
-    timerRef.current = setTimeout(() => {
-      setIsJustCompleted(false);
+    if (!wasAlreadyCompleted) {
+      setIsJustCompleted(true);
+
+      timerRef.current = setTimeout(() => {
+        setIsJustCompleted(false);
+        onClose();
+        timerRef.current = null;
+      }, 1200);
+    } else {
       onClose();
-      timerRef.current = null;
-    }, 1200);
+    }
   };
 
   return (
@@ -303,7 +308,7 @@ function LessonDetailModalContent({
                         {v.exampleSentence && (
                           <View className="bg-[#F8FAFC] border border-[#F1F5F9] rounded-xl p-3 mt-3 flex-row items-start gap-2">
                             <Ionicons name="chatbox-ellipses-outline" size={15} color="#94A3B8" style={{ marginTop: 2 }} />
-                            <Text className="font-[Poppins-MediumItalic] text-[13px] text-[#334155] flex-1 leading-snug">
+                            <Text className="font-[Poppins-Medium] italic text-[13px] text-[#334155] flex-1 leading-snug">
                               &quot;{v.exampleSentence}&quot;
                             </Text>
                           </View>

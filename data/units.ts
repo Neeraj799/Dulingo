@@ -24,8 +24,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "👋",
-    totalLessons: 6,
-    lessonIds: ["es-u1-l1", "es-u1-l2", "es-u1-l3", "es-u1-l4", "es-u1-l5", "es-u1-l6"],
+    totalLessons: 3,
+    lessonIds: ["es-u1-l1", "es-u1-l2", "es-u1-l3"],
   },
   {
     id: "es-unit-2",
@@ -35,8 +35,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#1CB0F6",
     icon: "🔢",
-    totalLessons: 6,
-    lessonIds: ["es-u2-l1", "es-u2-l2", "es-u2-l3", "es-u2-l4", "es-u2-l5", "es-u2-l6"],
+    totalLessons: 3,
+    lessonIds: ["es-u2-l1", "es-u2-l2", "es-u2-l3"],
   },
 
   // ── FRENCH (2 units) ──
@@ -48,8 +48,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "👋",
-    totalLessons: 6,
-    lessonIds: ["fr-u1-l1", "fr-u1-l2", "fr-u1-l3", "fr-u1-l4", "fr-u1-l5", "fr-u1-l6"],
+    totalLessons: 3,
+    lessonIds: ["fr-u1-l1", "fr-u1-l2", "fr-u1-l3"],
   },
   {
     id: "fr-unit-2",
@@ -59,8 +59,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#FF4B4B",
     icon: "🥐",
-    totalLessons: 6,
-    lessonIds: ["fr-u2-l1", "fr-u2-l2", "fr-u2-l3", "fr-u2-l4", "fr-u2-l5", "fr-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── JAPANESE (2 units) ──
@@ -72,8 +72,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🎌",
-    totalLessons: 6,
-    lessonIds: ["ja-u1-l1", "ja-u1-l2", "ja-u1-l3", "ja-u1-l4", "ja-u1-l5", "ja-u1-l6"],
+    totalLessons: 3,
+    lessonIds: ["ja-u1-l1", "ja-u1-l2", "ja-u1-l3"],
   },
   {
     id: "ja-unit-2",
@@ -83,8 +83,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#FF9600",
     icon: "🍜",
-    totalLessons: 6,
-    lessonIds: ["ja-u2-l1", "ja-u2-l2", "ja-u2-l3", "ja-u2-l4", "ja-u2-l5", "ja-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── KOREAN (2 units) ──
@@ -96,8 +96,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🌸",
-    totalLessons: 6,
-    lessonIds: ["ko-u1-l1", "ko-u1-l2", "ko-u1-l3", "ko-u1-l4", "ko-u1-l5", "ko-u1-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
   {
     id: "ko-unit-2",
@@ -107,8 +107,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#CE82FF",
     icon: "🧋",
-    totalLessons: 6,
-    lessonIds: ["ko-u2-l1", "ko-u2-l2", "ko-u2-l3", "ko-u2-l4", "ko-u2-l5", "ko-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── GERMAN (2 units) ──
@@ -120,8 +120,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🥨",
-    totalLessons: 6,
-    lessonIds: ["de-u1-l1", "de-u1-l2", "de-u1-l3", "de-u1-l4", "de-u1-l5", "de-u1-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
   {
     id: "de-unit-2",
@@ -131,8 +131,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#00CD9C",
     icon: "☕",
-    totalLessons: 6,
-    lessonIds: ["de-u2-l1", "de-u2-l2", "de-u2-l3", "de-u2-l4", "de-u2-l5", "de-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── CHINESE (2 units) ──
@@ -144,8 +144,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🐉",
-    totalLessons: 6,
-    lessonIds: ["zh-u1-l1", "zh-u1-l2", "zh-u1-l3", "zh-u1-l4", "zh-u1-l5", "zh-u1-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
   {
     id: "zh-unit-2",
@@ -155,8 +155,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#FF4B4B",
     icon: "🥟",
-    totalLessons: 6,
-    lessonIds: ["zh-u2-l1", "zh-u2-l2", "zh-u2-l3", "zh-u2-l4", "zh-u2-l5", "zh-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── PORTUGUESE (2 units) ──
@@ -168,8 +168,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🏖️",
-    totalLessons: 6,
-    lessonIds: ["pt-u1-l1", "pt-u1-l2", "pt-u1-l3", "pt-u1-l4", "pt-u1-l5", "pt-u1-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
   {
     id: "pt-unit-2",
@@ -179,8 +179,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#FFC800",
     icon: "🥐",
-    totalLessons: 6,
-    lessonIds: ["pt-u2-l1", "pt-u2-l2", "pt-u2-l3", "pt-u2-l4", "pt-u2-l5", "pt-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 
   // ── ITALIAN (2 units) ──
@@ -192,8 +192,8 @@ export const units: Unit[] = [
     order: 1,
     color: "#58CC02",
     icon: "🍕",
-    totalLessons: 6,
-    lessonIds: ["it-u1-l1", "it-u1-l2", "it-u1-l3", "it-u1-l4", "it-u1-l5", "it-u1-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
   {
     id: "it-unit-2",
@@ -203,8 +203,8 @@ export const units: Unit[] = [
     order: 2,
     color: "#2B70C9",
     icon: "☕",
-    totalLessons: 6,
-    lessonIds: ["it-u2-l1", "it-u2-l2", "it-u2-l3", "it-u2-l4", "it-u2-l5", "it-u2-l6"],
+    totalLessons: 0,
+    lessonIds: [],
   },
 ];
 
@@ -239,17 +239,17 @@ export function getActiveUnitForLanguage(
       languageCode: languageCode,
       title: "At the Café",
       description: "Order coffee, snacks, and talk about food and drinks.",
-      order: 2,
+      order: 1,
       color: "#58CC02",
       icon: "☕",
-      totalLessons: 6,
+      totalLessons: 0,
       lessonIds: [],
     };
   }
 
-  return (
-    languageUnits.find((u) =>
-      u.lessonIds.some((id) => !completedLessonIds.includes(id))
-    ) || languageUnits[languageUnits.length - 1]
+  const uncompletedUnit = languageUnits.find((u) =>
+    u.lessonIds.some((id) => !completedLessonIds.includes(id))
   );
+
+  return uncompletedUnit || languageUnits[0];
 }

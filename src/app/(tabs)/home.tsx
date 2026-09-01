@@ -16,6 +16,7 @@ import { useProgressStore } from "@/store/useProgressStore";
 
 type PlanItem = {
   id: string;
+  unitId?: string;
   title: string;
   subtitle: string;
   iconName: keyof typeof Ionicons.glyphMap;
@@ -36,6 +37,7 @@ function buildTodaysPlan(
   if (langLessons[0]) {
     plan.push({
       id: langLessons[0].id,
+      unitId: langLessons[0].unitId,
       title: "Lesson",
       subtitle: langLessons[0].title,
       iconName: "book",
@@ -276,7 +278,10 @@ export default function HomeScreen() {
                     openLearningDestination("lesson");
                     router.push({
                       pathname: "/(tabs)/learn",
-                      params: { lessonId: item.id },
+                      params: {
+                        lessonId: item.id,
+                        ...(item.unitId ? { unitId: item.unitId } : {}),
+                      },
                     });
                   }
                 }}

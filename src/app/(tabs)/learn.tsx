@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { images } from "@/constants/images";
 import { getActiveUnitForLanguage, getUnitsByLanguage } from "@/data/units";
@@ -50,14 +51,13 @@ const getLessonTopicImage = (lessonTitle: string, index: number) => {
 
 export default function LearnScreen() {
   const router = useRouter();
-  const { unitId } = useLocalSearchParams<{ unitId?: string }>();
+  const { unitId, lessonId } = useLocalSearchParams<{
+    unitId?: string;
+    lessonId?: string;
+  }>();
 
   const selectedLanguageCode = useLanguageStore((s) => s.selectedLanguageCode) || "es";
   const completedLessonIds = useProgressStore((s) => s.completedLessonIds);
-
-  const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
-  const [isBookmarked, setIsBookmarked] = useState(false);
 
   // Get units for current language
   const languageUnits = getUnitsByLanguage(selectedLanguageCode);
@@ -70,6 +70,55 @@ export default function LearnScreen() {
   // Get lessons for active unit
   const unitLessons = getLessonsByUnit(activeUnit.id);
 
+  const [activeTab, setActiveTab] = useState<"lessons" | "practice">("lessons");
+  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(() => {
+    if (lessonId) {
+      return unitLessons.find((l) => l.id === lessonId) || null;
+    }
+    return null;
+  });
+  const [prevLessonId, setPrevLessonId] = useState<string | undefined>(lessonId);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadBookmarkState = async () => {
+      try {
+        const storedValue = await AsyncStorage.getItem(`bookmark_unit_${activeUnit.id}`);
+        if (isMounted) {
+          setIsBookmarked(storedValue === "true");
+        }
+      } catch (error) {
+        console.warn("Failed to load bookmark state:", error);
+      }
+    };
+    loadBookmarkState();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeUnit.id]);
+
+  const handleToggleBookmark = async () => {
+    const nextState = !isBookmarked;
+    setIsBookmarked(nextState);
+    try {
+      await AsyncStorage.setItem(
+        `bookmark_unit_${activeUnit.id}`,
+        String(nextState)
+      );
+    } catch (error) {
+      console.warn("Failed to save bookmark state:", error);
+    }
+  };
+
+  if (lessonId !== prevLessonId) {
+    setPrevLessonId(lessonId);
+    if (lessonId) {
+      const match = unitLessons.find((l) => l.id === lessonId);
+      setSelectedLesson(match || null);
+    }
+  }
+
   // Completed lessons count in this unit
   const completedCountInUnit = unitLessons.filter((l) =>
     completedLessonIds.includes(l.id)
@@ -81,7 +130,11 @@ export default function LearnScreen() {
   );
 
   const inProgressIndex =
-    firstUncompletedIndex !== -1 ? firstUncompletedIndex : 2;
+    firstUncompletedIndex !== -1
+      ? firstUncompletedIndex
+      : unitLessons.length > 0
+      ? 0
+      : -1;
 
   const handleLessonPress = (lesson: Lesson) => {
     setSelectedLesson(lesson);
@@ -125,7 +178,7 @@ export default function LearnScreen() {
           {/* Bookmark / Guidebook Button */}
           <TouchableOpacity
             activeOpacity={0.75}
-            onPress={() => setIsBookmarked((prev) => !prev)}
+            onPress={handleToggleBookmark}
             className={`w-9 h-10 rounded-xl items-center justify-center border ${
               isBookmarked
                 ? "bg-[#5B42F3] border-[#5B42F3]"
@@ -198,19 +251,88 @@ export default function LearnScreen() {
           {activeTab === "lessons" ? (
             /* ── Lessons List ───────────────────────────────────────────── */
             <View className="px-5 pt-4 pb-12 gap-3">
-              {unitLessons.map((lesson, index) => {
-                const isCompleted = completedLessonIds.includes(lesson.id);
-                const isInProgress = !isCompleted && index === inProgressIndex;
-                const topicImage = getLessonTopicImage(lesson.title, index);
+              {unitLessons.length === 0 ? (
+                <View className="bg-white border border-[#E5E7EB] rounded-2xl p-6 items-center justify-center my-4">
+                  <Ionicons name="construct-outline" size={40} color="#9CA3AF" />
+                  <Text className="font-[Poppins-Bold] text-[16px] text-[#0D132B] mt-3 text-center">
+                    No Lessons Available
+                  </Text>
+                  <Text className="font-[Poppins-Medium] text-[13px] text-[#6B7280] mt-1 text-center">
+                    Lessons for this unit are coming soon. Check back later!
+                  </Text>
+                </View>
+              ) : (
+                unitLessons.map((lesson, index) => {
+                  const isCompleted = completedLessonIds.includes(lesson.id);
+                  const isInProgress = !isCompleted && index === inProgressIndex;
+                  const topicImage = getLessonTopicImage(lesson.title, index);
 
-                if (isCompleted) {
-                  // ── COMPLETED LESSON CARD ──────────────────────────────
+                  if (isCompleted) {
+                    // ── COMPLETED LESSON CARD ──────────────────────────────
+                    return (
+                      <TouchableOpacity
+                        key={lesson.id}
+                        activeOpacity={0.8}
+                        onPress={() => handleLessonPress(lesson)}
+                        className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex-row items-center justify-between shadow-none"
+                      >
+                        <View className="flex-1 pr-3">
+                          <Text className="font-[Poppins-Medium] text-[13px] text-[#9CA3AF]">
+                            Lesson {index + 1}
+                          </Text>
+                          <Text className="font-[Poppins-SemiBold] text-[16px] text-[#0D132B] mt-0.5">
+                            {lesson.title}
+                          </Text>
+                        </View>
+
+                        {/* Completed Green Checkmark Circle */}
+                        <View className="w-7 h-7 rounded-full bg-[#58CC02] items-center justify-center">
+                          <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }
+
+                  if (isInProgress) {
+                    // ── IN PROGRESS LESSON CARD (MATCHES DESIGN EXACTLY) ─────
+                    return (
+                      <TouchableOpacity
+                        key={lesson.id}
+                        activeOpacity={0.85}
+                        onPress={() => handleLessonPress(lesson)}
+                        className="bg-[#F7F5FF] border-2 border-[#5B42F3] rounded-2xl p-4 flex-row items-center justify-between shadow-sm"
+                      >
+                        <View className="flex-1 pr-3">
+                          <Text className="font-[Poppins-Bold] text-[13px] text-[#5B42F3]">
+                            Lesson {index + 1}
+                          </Text>
+                          <Text className="font-[Poppins-Bold] text-[17px] text-[#0D132B] mt-0.5">
+                            {lesson.title}
+                          </Text>
+                          <Text className="font-[Poppins-Medium] text-[13px] text-[#5B42F3] mt-1">
+                            In progress
+                          </Text>
+                        </View>
+
+                        {/* Topic Illustration / Icon Graphic on Right */}
+                        <View className="w-16 h-16 rounded-xl overflow-hidden bg-white/70 items-center justify-center">
+                          <Image
+                            source={topicImage}
+                            style={styles.cardTopicImage}
+                            contentFit="contain"
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }
+
+                  // ── UPCOMING / AVAILABLE LESSON CARD ────────────────────
                   return (
                     <TouchableOpacity
                       key={lesson.id}
                       activeOpacity={0.8}
-                      onPress={() => handleLessonPress(lesson)}
-                      className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex-row items-center justify-between shadow-none"
+                      disabled={true}
+                      className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex-row items-center justify-between"
                     >
                       <View className="flex-1 pr-3">
                         <Text className="font-[Poppins-Medium] text-[13px] text-[#9CA3AF]">
@@ -221,78 +343,18 @@ export default function LearnScreen() {
                         </Text>
                       </View>
 
-                      {/* Completed Green Checkmark Circle */}
-                      <View className="w-7 h-7 rounded-full bg-[#58CC02] items-center justify-center">
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }
-
-                if (isInProgress) {
-                  // ── IN PROGRESS LESSON CARD (MATCHES DESIGN EXACTLY) ─────
-                  return (
-                    <TouchableOpacity
-                      key={lesson.id}
-                      activeOpacity={0.85}
-                      onPress={() => handleLessonPress(lesson)}
-                      className="bg-[#F7F5FF] border-2 border-[#5B42F3] rounded-2xl p-4 flex-row items-center justify-between shadow-sm"
-                    >
-                      <View className="flex-1 pr-3">
-                        <Text className="font-[Poppins-Bold] text-[13px] text-[#5B42F3]">
-                          Lesson {index + 1}
-                        </Text>
-                        <Text className="font-[Poppins-Bold] text-[17px] text-[#0D132B] mt-0.5">
-                          {lesson.title}
-                        </Text>
-                        <Text className="font-[Poppins-Medium] text-[13px] text-[#5B42F3] mt-1">
-                          In progress
-                        </Text>
-                      </View>
-
-                      {/* Topic Illustration / Icon Graphic on Right */}
-                      <View className="w-16 h-16 rounded-xl overflow-hidden bg-white/70 items-center justify-center">
-                        <Image
-                          source={topicImage}
-                          style={styles.cardTopicImage}
-                          contentFit="contain"
+                      {/* Lock Icon in Gray Ring */}
+                      <View className="w-7 h-7 rounded-full border border-[#D1D5DB] items-center justify-center bg-white">
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={14}
+                          color="#6B7280"
                         />
                       </View>
                     </TouchableOpacity>
                   );
-                }
-
-                // ── UPCOMING / AVAILABLE LESSON CARD ────────────────────
-                return (
-                  <TouchableOpacity
-                    key={lesson.id}
-                    activeOpacity={0.8}
-                    disabled={true}
-                    className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex-row items-center justify-between"
-                  >
-                    <View className="flex-1 pr-3">
-                      <Text className="font-[Poppins-Medium] text-[13px] text-[#9CA3AF]">
-                        Lesson {index + 1}
-                      </Text>
-                      <Text className="font-[Poppins-SemiBold] text-[16px] text-[#0D132B] mt-0.5">
-                        {lesson.title}
-                      </Text>
-                      <Text className="font-[Poppins-Regular] text-[12px] text-[#9CA3AF] mt-1">
-                        0 / 6 lessons
-                      </Text>
-                    </View>
-
-                    {/* Lock Icon in Gray Ring */}
-                    <View className="w-7 h-7 rounded-full border border-[#D1D5DB] items-center justify-center bg-white">
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={14}
-                        color="#6B7280"
-                      />
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                })
+              )}
             </View>
           ) : (
             /* ── Practice Tab Hub ───────────────────────────────────────── */
@@ -307,7 +369,11 @@ export default function LearnScreen() {
               {/* Quick Review Card */}
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => handleLessonPress(unitLessons[0])}
+                onPress={() => {
+                  if (unitLessons[0]) {
+                    handleLessonPress(unitLessons[0]);
+                  }
+                }}
                 className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-4 flex-row items-center justify-between"
               >
                 <View className="flex-row items-center gap-3.5 flex-1">

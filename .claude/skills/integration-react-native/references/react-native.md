@@ -24,7 +24,11 @@ npm i -s posthog-react-native @react-native-async-storage/async-storage react-na
 
 #### React Native Web and macOS
 
-If you're using [React Native Web](https://github.com/necolas/react-native-web) or [React Native macOS](https://github.com/microsoft/react-native-macos), do not use the [expo-file-system](https://github.com/expo/expo/tree/master/packages/expo-file-system) package since the Web and macOS targets aren't supported, use the [@react-native-async-storage/async-storage](https://github.com/react-native-async-storage/async-storage) package instead.
+If you're using [React Native Web](https://github.com/necolas/react-native-web) or [React Native macOS](https://github.com/microsoft/react-native-macos), do not use the [expo-file-system](https://github.com/expo/expo/tree/master/packages/expo-file-system) package since the Web and macOS targets aren't supported, use the [@react-native-async-storage/async-storage](https://github.com/react-native-async-storage/async-storage) package instead:
+
+```bash
+npx expo install posthog-react-native @react-native-async-storage/async-storage expo-application expo-device expo-localization
+```
 
 ### Configuration
 
@@ -153,7 +157,7 @@ You can further customize how PostHog works through its configuration on initial
 | before_send | Function | undefined | A callback function that is called before each event is sent to PostHog. You can use it to modify, filter, or suppress events. Return null to drop the event, or return the modified event to send it. See [customizing exception capture](#customizing-exception-capture-with-before_send) for details. |
 | capturePushNotificationSubscriptions | Boolean | true | Whether to automatically register this device's push token so [Workflows](/docs/workflows.md) can target it. Requires @posthog/react-native-plugin. See [push notifications](#push-notifications). Available in version 4.62.0+. |
 | capturePushNotificationOpened | Boolean | true | Whether to automatically capture $push_notification_opened when the user taps a push notification. Requires @posthog/react-native-plugin. See [push notifications](#push-notifications). Available in version 4.62.0+. |
-| pushIdentityProvider | Function | undefined | Supplies a signed identity-verification token for push subscription requests. Only needed when your push channel requires identity verification. See [identity verification](#identity-verification). Available in version 4.62.0+. |
+| pushIdentityProvider | Function | undefined | Supplies a signed identity-verification token for push subscription requests. Only needed when your push channel requires identity verification. See [identity verification](/docs/workflows/push-notifications.md#identity-verification). Available in version 4.62.0+. |
 
 ### Tracing headers
 
@@ -683,7 +687,9 @@ const MyComponent = () => {
 #### Example 2: Multivariate feature flags
 
 ```jsx
+import { View } from 'react-native'
 import { useFeatureFlag } from 'posthog-react-native'
+
 const MyComponent = () => {
     const multiVariantFeature = useFeatureFlag('key-for-your-multivariate-flag')
     if (multiVariantFeature === undefined) {
@@ -693,7 +699,7 @@ const MyComponent = () => {
       // Do something
     }
     // Optional use the 'useFeatureFlagWithPayload' hook for fetching the feature flag payload
-    return <div/>
+    return <View />
 }
 ```
 
@@ -755,7 +761,7 @@ posthog.reloadFeatureFlags()
 
 ### Feature flag caching
 
-The React Native SDK caches feature flag values in AsyncStorage. Cached values persist indefinitely with no TTL until updated by a successful API call. This enables offline support and reduces latency, but means **inactive users may see stale flag values** from their last session.
+The React Native SDK caches feature flag values in the configured persistence backend selected by `persistence` (which may use `expo-file-system`, `AsyncStorage`, custom storage, or in-memory storage). Cached values persist indefinitely with no TTL until updated by a successful API call. This enables offline support and reduces latency, but means **inactive users may see stale flag values** from their last session.
 
 For example, if a user last opened your app when a flag was `false`, that value remains cached even after you roll it out to 100%. When they reopen the app, the SDK returns the cached `false` first, then fetches the fresh `true` value from the API.
 
@@ -766,13 +772,16 @@ To ensure fresh flag values:
 await posthog.reloadFeatureFlagsAsync()
 ```
 
-Or clear cached values for inactive users:
+Or refresh cached feature flags for inactive users while preserving the analytics user and anonymous IDs:
 
 ```jsx
 if (lastActiveDate < migrationDate) {
-  posthog.reset() // Clears all cached data
+  await posthog.reloadFeatureFlagsAsync()
 }
 ```
+
+> **Note:** Reserve `posthog.reset()` for logout flows (or explicitly re-identify the user with `posthog.identify()` afterward if a full reset is required), as `posthog.reset()` clears user identity, anonymous ID, and super properties.
+
 
 ### Request timeout
 
@@ -1066,7 +1075,7 @@ posthog.debug()
 
 ## Disabling for local development
 
-You may want to disable PostHog when working locally or in a test environment. You can do this by setting the `disable` option to `true` when initializing PostHog. Helpfully this allows you to continue using `usePostHog` and safely calling it without anything actually happening.
+You may want to disable PostHog when working locally or in a test environment. You can do this by setting the `disabled` option to `true` when initializing PostHog. Helpfully this allows you to continue using `usePostHog` and safely calling it without anything actually happening.
 
 ```jsx
 // App.(js|ts)
@@ -1118,7 +1127,7 @@ await PostHog.setup('<ph_project_token>', {
 PostHog.capture("foo")
 // V2 Setup difference
 import PostHog from 'posthog-react-native'
-const posthog = await Posthog.initAsync('<ph_project_token>', {
+const posthog = await PostHog.initAsync('<ph_project_token>', {
     // usually 'https://us.i.posthog.com' or 'https://eu.i.posthog.com'
     host: 'https://us.i.posthog.com',
     // Add any other options here.

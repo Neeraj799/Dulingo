@@ -9,8 +9,8 @@ const STORAGE_KEY = "dulingo_selectedLanguage";
 
 /**
  * Zustand-compatible storage adapter:
- *   - Web   → AsyncStorage (backed by localStorage via the installed v3 package)
- *   - Native → expo-secure-store (encrypted keychain / keystore)
+ *   - Web   → window.localStorage directly
+ *   - Native → AsyncStorage (@react-native-async-storage/async-storage)
  *
  * Both branches implement the full { getItem, setItem, removeItem } contract,
  * so Zustand persist can safely call any method on any platform.
@@ -53,16 +53,13 @@ const buildStorage = () => {
     };
   }
 
-  // Native: lazy-require SecureStore so the module is never evaluated on web.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const SecureStore = require("expo-secure-store") as typeof import("expo-secure-store");
   return {
     getItem: (key: string): Promise<string | null> =>
-      SecureStore.getItemAsync(key),
+      AsyncStorage.getItem(key).catch(() => null),
     setItem: (key: string, value: string): Promise<void> =>
-      SecureStore.setItemAsync(key, value),
+      AsyncStorage.setItem(key, value).catch(() => {}),
     removeItem: (key: string): Promise<void> =>
-      SecureStore.deleteItemAsync(key),
+      AsyncStorage.removeItem(key).catch(() => {}),
   };
 };
 
