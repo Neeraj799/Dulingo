@@ -7,8 +7,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { posthog } from "@/config/posthog";
 import { images } from "@/constants/images";
-import { lessons } from "@/data/lessons";
-import { units } from "@/data/units";
+import { getLessonsByLanguage } from "@/data/lessons";
+import { getActiveUnitForLanguage } from "@/data/units";
 import { useLanguageStore, useSelectedLanguage } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 
@@ -29,9 +29,7 @@ function buildTodaysPlan(
 ): PlanItem[] {
   if (!languageCode) return [];
 
-  const langLessons = lessons
-    .filter((l) => l.languageCode === languageCode)
-    .slice(0, 3);
+  const langLessons = getLessonsByLanguage(languageCode).slice(0, 3);
 
   const plan: PlanItem[] = [];
 
@@ -55,12 +53,12 @@ function buildTodaysPlan(
     completed: false,
   });
 
+  const wordCount = langLessons[1]?.vocabulary?.length ?? 5;
+
   plan.push({
     id: "new-words",
     title: "New words",
-    subtitle: langLessons[1]
-      ? `${langLessons[1].vocabulary?.length ?? 5} words`
-      : "5 words",
+    subtitle: `${wordCount} ${wordCount === 1 ? "word" : "words"}`,
     iconName: "chatbubbles",
     iconBg: "#FF5B5B",
     completed: false,
@@ -86,17 +84,8 @@ export default function HomeScreen() {
     user?.fullName?.split(" ")[0] ||
     "Learner";
 
-  const currentUnit = units.find(
-    (u) => u.languageCode === selectedLanguageCode
-  );
-  const allLangLessons = lessons.filter(
-    (l) => l.languageCode === selectedLanguageCode
-  );
-  // currentLesson retained for future use (lesson screen integration)
-  const _currentLesson =
-    allLangLessons.find((l) => !completedLessonIds.includes(l.id)) ??
-    allLangLessons[0];
-  const currentUnitIndex = currentUnit ? currentUnit.order : 1;
+  const currentUnit = getActiveUnitForLanguage(selectedLanguageCode || "es", completedLessonIds);
+  const currentUnitIndex = currentUnit.order;
 
   const todaysPlan = buildTodaysPlan(selectedLanguageCode, completedLessonIds);
   const xpProgress = Math.min(dailyXP / dailyXPGoal, 1);
@@ -223,7 +212,10 @@ export default function HomeScreen() {
                   activeOpacity={0.85}
                   onPress={() => {
                     openLearningDestination("lesson");
-                    router.push("/(tabs)/learn");
+                    router.push({
+                      pathname: "/(tabs)/learn",
+                      params: { unitId: currentUnit.id },
+                    });
                   }}
                   className="self-start mt-5 bg-white rounded-full px-6 py-2.5"
                 >
@@ -282,7 +274,10 @@ export default function HomeScreen() {
                     router.push("/(tabs)/learn");
                   } else {
                     openLearningDestination("lesson");
-                    router.push("/(tabs)/learn");
+                    router.push({
+                      pathname: "/(tabs)/learn",
+                      params: { lessonId: item.id },
+                    });
                   }
                 }}
               >

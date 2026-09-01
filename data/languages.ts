@@ -9,14 +9,13 @@ import type { Language } from "@/types/learning";
  * totalUnits reflects the real unit count in data/units.ts, not aspirational content.
  */
 export const languages: Language[] = [
-  // ── Available ────────────────────────────────────────────────────────────
   {
     code: "es",
     name: "Spanish",
     nativeName: "Español",
     flag: "https://flagcdn.com/w80/es.png",
     description: "The world's second most spoken language — vibrant, melodic, and incredibly useful.",
-    totalUnits: 2, // es-unit-1, es-unit-2
+    totalUnits: 2,
     isAvailable: true,
     learnerCount: "28.4M learners",
   },
@@ -26,7 +25,7 @@ export const languages: Language[] = [
     nativeName: "Français",
     flag: "https://flagcdn.com/w80/fr.png",
     description: "The language of love, art, and diplomacy — spoken across five continents.",
-    totalUnits: 1, // fr-unit-1
+    totalUnits: 2,
     isAvailable: true,
     learnerCount: "19.4M learners",
   },
@@ -36,19 +35,17 @@ export const languages: Language[] = [
     nativeName: "日本語",
     flag: "https://flagcdn.com/w80/jp.png",
     description: "A beautifully structured language rich in culture, anime, and technology.",
-    totalUnits: 1, // ja-unit-1
+    totalUnits: 2,
     isAvailable: true,
     learnerCount: "12.7M learners",
   },
-
-  // ── Coming soon (no units authored yet) ──────────────────────────────────
   {
     code: "ko",
     name: "Korean",
     nativeName: "한국어",
     flag: "https://flagcdn.com/w80/kr.png",
     description: "K-pop, K-drama, and one of the most logical writing systems ever invented.",
-    totalUnits: 0,
+    totalUnits: 2,
     isAvailable: false,
     learnerCount: "9.3M learners",
   },
@@ -58,7 +55,7 @@ export const languages: Language[] = [
     nativeName: "Deutsch",
     flag: "https://flagcdn.com/w80/de.png",
     description: "Precise, logical, and powerful — the most spoken native language in Europe.",
-    totalUnits: 0,
+    totalUnits: 2,
     isAvailable: false,
     learnerCount: "8.1M learners",
   },
@@ -68,7 +65,7 @@ export const languages: Language[] = [
     nativeName: "中文",
     flag: "https://flagcdn.com/w80/cn.png",
     description: "Mandarin Chinese — the most spoken language on Earth, full of history and nuance.",
-    totalUnits: 0,
+    totalUnits: 2,
     isAvailable: false,
     learnerCount: "7.4M learners",
   },
@@ -78,7 +75,7 @@ export const languages: Language[] = [
     nativeName: "Português",
     flag: "https://flagcdn.com/w80/pt.png",
     description: "Warm, rhythmic, and spoken by 260 million people from Brazil to Portugal.",
-    totalUnits: 0,
+    totalUnits: 2,
     isAvailable: false,
     learnerCount: "6.2M learners",
   },
@@ -88,7 +85,7 @@ export const languages: Language[] = [
     nativeName: "Italiano",
     flag: "https://flagcdn.com/w80/it.png",
     description: "The language of opera, pasta, and Renaissance art — musical in every syllable.",
-    totalUnits: 0,
+    totalUnits: 2,
     isAvailable: false,
     learnerCount: "4.8M learners",
   },

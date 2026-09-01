@@ -2,10 +2,6 @@
 
 # Identify users - Docs
 
-Copy page
-
-# Identify users - Docs
-
 Linking events to specific users enables you to build a full picture of how they're using your product across different sessions, devices, and platforms.
 
 This is straightforward to do when [capturing backend events](/docs/product-analytics/capture-events?tab=Node.js.md), as you associate events to a specific user using a `distinct_id`, which is a required argument.
@@ -13,8 +9,6 @@ This is straightforward to do when [capturing backend events](/docs/product-anal
 However, in the frontend of a [web](/docs/libraries/js/usage.md#capturing-events) or [mobile app](/docs/libraries/ios.md#capturing-events), a `distinct_id` is not a required argument — PostHog's SDKs will generate an anonymous `distinct_id` for you automatically and you can capture events anonymously, provided you use the appropriate [configuration](/docs/libraries/js/usage.md#capturing-anonymous-events).
 
 To link events to specific users, call `identify`:
-
-PostHog AI
 
 ### Web
 
@@ -106,8 +100,6 @@ If your app already knows the signed-in user when you initialize the JavaScript 
 
 Web
 
-PostHog AI
-
 ```javascript
 posthog.init('<ph_project_token>', {
     api_host: 'https://us.i.posthog.com',
@@ -144,8 +136,6 @@ This is important if your users are sharing a computer, as otherwise all of thos
 
 You can do that like so:
 
-PostHog AI
-
 ### Web
 
 ```javascript
@@ -179,8 +169,6 @@ await Posthog().reset();
 If you *also* want to reset the `device_id` so that the device will be considered a new device in future events, you can pass `true` as an argument:
 
 Web
-
-PostHog AI
 
 ```javascript
 posthog.reset(true)
@@ -225,8 +213,6 @@ In these cases, you can use a [deep link](https://developer.android.com/training
 As long as you associate the distinct IDs with `posthog.identify()` or `posthog.alias()`, you can track events generated across platforms.
 
 Here's an example implementation for handling deep links from web to mobile:
-
-PostHog AI
 
 ### iOS
 
@@ -302,11 +288,3 @@ object DeepLinkIdentityManager {
 -   [Identifying users docs](/docs/product-analytics/identify.md)
 -   [How person processing works](/docs/how-posthog-works/ingestion-pipeline.md#2-person-processing)
 -   [An introductory guide to identifying users in PostHog](/tutorials/identifying-users-guide.md)
-
-### Still have questions?
-
-Ask PostHog AI
-
-### Was this page useful?
-
-HelpfulCould be better
