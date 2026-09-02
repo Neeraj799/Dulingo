@@ -59,7 +59,7 @@ function InitialLayout() {
 
   useEffect(() => {
     if (isLoaded && hasHydrated) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }
   }, [isLoaded, hasHydrated]);
 

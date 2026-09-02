@@ -1,7 +1,8 @@
+import { posthog } from "@/config/posthog";
 import { useSignIn, useSSO } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -12,7 +13,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { posthog } from "@/config/posthog";
 import { images } from "../../constants/images";
 import VerificationModal from "../components/VerificationModal";
 
@@ -82,7 +82,7 @@ export default function SignInScreen() {
               await Promise.race([
                 posthog.flush(),
                 new Promise((resolve) => setTimeout(resolve, 1000)),
-              ]).catch(() => {});
+              ]).catch(() => { });
             }
             const url = decorateUrl("/");
             if (url.startsWith("http")) {
