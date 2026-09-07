@@ -91,7 +91,11 @@ async def create_agent(**kwargs) -> Agent:
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
 
-    if gemini_key:
+    if (
+        gemini_key
+        and gemini_key not in ("your_gemini_api_key_here", "your_google_api_key_here")
+        and not gemini_key.startswith("your_")
+    ):
         logger.info("Using Gemini Realtime LLM for AI Language Teacher")
         llm = gemini.Realtime(api_key=gemini_key)
     elif openai_key and not openai_key.startswith("sk-proj-placeholder"):

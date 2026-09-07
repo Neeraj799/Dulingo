@@ -47,9 +47,15 @@ export function getApiUrl(path: string): string {
       (Constants as any).manifest?.debuggerHost;
 
     if (hostUri) {
-      const host = hostUri.split(":")[0];
-      return `http://${host}:8081${cleanPath}`;
+      const [host, port] = hostUri.split(":");
+      return `http://${host}:${port || "8081"}${cleanPath}`;
     }
+  }
+
+  if (!__DEV__) {
+    throw new Error(
+      "Missing EXPO_PUBLIC_API_URL: An absolute base URL must be configured for native production builds."
+    );
   }
 
   return cleanPath;

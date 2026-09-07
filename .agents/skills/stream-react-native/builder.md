@@ -116,7 +116,7 @@ npx pod-install
 - **RN 0.81+**: set `edgeToEdgeEnabled=true` in `android/gradle.properties`. The RN Gradle plugin handles the rest - **no `react-native-edge-to-edge` install, no `styles.xml` edit**.
 - **Older RN CLI**: `npm install react-native-edge-to-edge` and inherit a `Theme.EdgeToEdge` variant (e.g. `Theme.EdgeToEdge.Material3`) in `android/app/src/main/res/values/styles.xml`. Add `<item name="enforceNavigationBarContrast">false</item>` for a fully transparent nav bar.
 
-If you installed the animation peers, add `react-native-worklets/plugin` as the last Babel plugin. Set `minSdkVersion = 24` in `android/build.gradle` and add Java 8 source compatibility in `android/app/build.gradle`. Add camera/microphone usage descriptions to `Info.plist` and camera/audio permissions to `AndroidManifest.xml`. In `android/app/src/main/res/values/styles.xml`, set the app theme parent to a `Theme.EdgeToEdge` variant (e.g. `Theme.EdgeToEdge.Material3`) so Android draws under the system bars.
+If you installed the animation peers, add `react-native-worklets/plugin` as the last Babel plugin. Set `minSdkVersion = 24` in `android/build.gradle` and add Java 8 source compatibility in `android/app/build.gradle`. Add camera/microphone usage descriptions to `Info.plist` and camera/audio permissions to `AndroidManifest.xml`.
 
 **Feeds - Expo:**
 

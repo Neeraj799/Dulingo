@@ -90,9 +90,9 @@ getstream api GetApp --jq '.app.video_primary_use_case'   # -> "livestreaming", 
 
 ### Server Routes
 
-| Route | Method | Params | Action | Response |
+| Route | Method | Auth / Params | Action | Response |
 |---|---|---|---|---|
-| `/api/token` | GET | `?user_id=xxx` | `client.upsertUsers([{ id, name }])`, `client.generateUserToken({ user_id })` | `{ videoToken, apiKey }` |
+| `/api/token` | POST | `Authorization: Bearer <clerk_token>` | Authenticate user via Clerk server-side, `client.upsertUsers([{ id: auth.userId, name }])`, `client.generateUserToken({ user_id: auth.userId })` | `{ videoToken, apiKey }` |
 
 ```ts
 import { StreamClient } from '@stream-io/node-sdk';

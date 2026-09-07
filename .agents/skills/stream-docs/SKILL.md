@@ -390,7 +390,7 @@ Apply the honesty rules (top of file). Every answer must:
 
 Quote what's there, then explicitly note what's missing:
 
-> The docs describe how to add a reaction, but don't cover custom reaction UI rendering on this page. See also [Message Interactions](...).
+> The docs describe how to add a reaction, but don't cover custom reaction UI rendering on this page. See also Message Interactions.
 
 ### When the docs don't cover it at all
 

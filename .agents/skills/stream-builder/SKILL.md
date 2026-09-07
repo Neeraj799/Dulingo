@@ -116,7 +116,7 @@ Order:
 The scaffold command creates a new directory, so we scaffold into a temporary `.scaffold` subdirectory and move everything up. The `-n .scaffold` flag also lands in the generated `package.json` as `"name": ".scaffold"`, which npm/pnpm/yarn reject (a package name can't start with `.`), so the final step rewrites `name` to a valid slug derived from the project directory:
 
 ```bash
-npx shadcn@latest init -t next -b base -n .scaffold --no-monorepo -p <random-preset> && mv .scaffold/* .scaffold/.* . 2>/dev/null; rm -rf .scaffold && node -e "const fs=require('fs'),path=require('path'),j=require('./package.json');j.name=path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^[._-]+/,'')||'app';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n')"
+npx shadcn@latest init -t next -b base -n .scaffold --no-monorepo -p <random-preset> && mv .scaffold/* .scaffold/.[!.]* . && rm -rf .scaffold && node -e "const fs=require('fs'),path=require('path'),j=require('./package.json');j.name=path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^[._-]+/,'')||'app';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n')"
 ```
 
 **Task A.1: Add base Shadcn components:**
@@ -152,7 +152,7 @@ Do **not** modify `layout.tsx` or `globals.css` after scaffold - use Shadcn's de
 **First, verify `.env*` is gitignored** (the `stream` skill's [`RULES.md`](../stream/RULES.md) > Secrets). The Next.js scaffold's default already includes it; this is a safety net for projects whose `.gitignore` was hand-edited or doesn't yet exist:
 
 ```bash
-bash -c 'test -f .gitignore && grep -qE "^\.env" .gitignore || echo ".env*" >> .gitignore'
+bash -c 'test -f .gitignore && grep -qE "^\.env" .gitignore || echo ".env*" >> .gitignore; for f in .env .env.local .env.development.local .env.production.local; do git check-ignore -q "$f" || exit 1; done'
 ```
 
 Then write secrets:
@@ -306,13 +306,13 @@ Login -> Feed hub (follow users + composer + tabs: Timeline | My Posts) -> Comme
 
 When building apps that combine multiple products, read each relevant `references/<Product>.md` App Integration section. Key patterns:
 
-- **Combined token route:** `/api/token` returns tokens for each product (`{ chatToken, videoToken, feedToken, apiKey }`). Upsert only the requesting user - never seed demo users.
+- **Combined token route:** authenticated `POST /api/token` returns tokens for each product (`{ chatToken, videoToken, feedToken, apiKey }`). Derive the user ID server-side from Clerk rather than accepting `user_id` from the caller. Upsert only the requesting user - never seed demo users.
 - **Video + Feeds (Livestreaming):** Feed hub separates `type === "live"` activities as prominent live cards. "Go Live" posts a live activity via `/api/feed/live`. "End Stream" removes it.
-- **Video + Chat (Livestreaming):** Chat alongside video on the watch screen. Use `livestream` channel type - one channel per stream, keyed by call ID. Create the chat channel in the `/api/token` route.
+- **Video + Chat (Livestreaming):** Chat alongside video on the watch screen. Use `livestream` channel type - one channel per stream, keyed by call ID. Create the chat channel in the `POST /api/token` route.
 - **Moderation (all use cases):** Run Moderation CLI setup commands from `references/MODERATION.md` (App Integration -> Setup), adjusting channel type name. **Never build moderation review UI** (RULES.md > Moderation is Dashboard-only) - review happens in the [Stream Dashboard](https://beta.dashboard.getstream.io).
 
 ---
 
 ## Reference file paths
 
-Blueprint files live under `agent-skills/skills/stream-builder/references/` inside the Stream skill pack. Reference them as `agent-skills/skills/stream-builder/references/FEEDS.md` from the **root of this repository**. Do not use machine-specific absolute paths.
+Blueprint files live under `.agents/skills/stream-builder/references/` inside the Stream skill pack. Reference them as `.agents/skills/stream-builder/references/FEEDS.md` from the **root of this repository**. Do not use machine-specific absolute paths.

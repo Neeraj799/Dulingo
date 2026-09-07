@@ -16,13 +16,13 @@ Before writing any code, understand what's already in place:
 
 1. **Packages:** check `package.json` for `stream-chat`, `stream-chat-react`, `@stream-io/video-react-sdk`, `@stream-io/node-sdk`.
 2. **Auth:** does the app already have a `/api/token` route? If so, **extend** it with the new product's token - don't create a second token route.
-3. **Credentials:** check for `.env` with `STREAM_API_KEY` / `STREAM_API_SECRET`. If missing, run `getstream init` (if the dir isn't a Stream project yet) then `getstream env` to write them - never read or print the secret.
+3. **Credentials:** avoid reading, grepping, or printing `.env` contents or secrets; only check whether `.env` exists, then confirm credentials setup is needed before using `getstream init` for non-project directories and `getstream env` to provision them.
 4. **UI framework:** confirm Tailwind, Shadcn, or whatever the project uses. Do **not** install Shadcn or change the styling setup unless the user asks.
 5. **Directory structure:** note whether the project uses `app/` or `src/app/` - match the existing convention.
 
 ## E2: Install + configure
 
-1. **Install** only the new SDKs: `npm install <new-packages> --legacy-peer-deps` (the `stream` skill's [`RULES.md`](../stream/RULES.md) > Package manager).
+1. **Install** only the new SDKs: detect and reuse the project's existing package manager (`npm`, `yarn`, or `pnpm`) instead of always running `npm install`, avoiding introducing a second lockfile: `<package-manager> add|install <new-packages>` (preserve the `--legacy-peer-deps` requirement where supported; see [`RULES.md`](../stream/RULES.md) > Package manager).
 2. **Configure via CLI:** run setup commands from the relevant `references/<Product>.md` (App Integration -> Setup). Feeds needs feed groups created; Moderation needs blocklist + config.
 3. **Import CSS** if the product needs it (Chat: `stream-chat-react/css/index.css` (v14+ preferred alias; v13 used `dist/css/v2/index.css`), Video: `@stream-io/video-react-sdk/dist/css/styles.css`).
 

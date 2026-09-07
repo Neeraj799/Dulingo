@@ -1,17 +1,123 @@
 import { StreamClient } from "@stream-io/node-sdk";
+import { verifyClerkSession } from "@/lib/clerk";
+import { getLessonById } from "@/data/lessons";
+import { getLanguageByCode } from "@/data/languages";
 
 const STREAM_API_KEY = process.env.STREAM_API_KEY;
 const STREAM_API_SECRET = process.env.STREAM_API_SECRET;
+
+function sanitizeGoal(goal: unknown): Record<string, unknown> | null {
+  if (!goal || typeof goal !== "object" || Array.isArray(goal)) {
+    return null;
+  }
+  const g = goal as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  if (typeof g.description === "string" && g.description.trim()) {
+    result.description = g.description.trim().slice(0, 300);
+  }
+  if (typeof g.xpReward === "number" && !Number.isNaN(g.xpReward)) {
+    result.xpReward = Math.max(0, Math.min(1000, Math.floor(g.xpReward)));
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function sanitizeVocabulary(vocabulary: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(vocabulary)) {
+    return [];
+  }
+  const result: Record<string, unknown>[] = [];
+  for (const item of vocabulary.slice(0, 30)) {
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const v = item as Record<string, unknown>;
+      if (typeof v.word === "string" && v.word.trim()) {
+        result.push({
+          word: v.word.trim().slice(0, 100),
+          translation:
+            typeof v.translation === "string"
+              ? v.translation.trim().slice(0, 100)
+              : "",
+          pronunciation:
+            typeof v.pronunciation === "string"
+              ? v.pronunciation.trim().slice(0, 100)
+              : undefined,
+          exampleSentence:
+            typeof v.exampleSentence === "string"
+              ? v.exampleSentence.trim().slice(0, 200)
+              : undefined,
+          exampleTranslation:
+            typeof v.exampleTranslation === "string"
+              ? v.exampleTranslation.trim().slice(0, 200)
+              : undefined,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+function sanitizePhrases(phrases: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(phrases)) {
+    return [];
+  }
+  const result: Record<string, unknown>[] = [];
+  for (const item of phrases.slice(0, 30)) {
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const p = item as Record<string, unknown>;
+      if (typeof p.phrase === "string" && p.phrase.trim()) {
+        result.push({
+          phrase: p.phrase.trim().slice(0, 200),
+          translation:
+            typeof p.translation === "string"
+              ? p.translation.trim().slice(0, 200)
+              : "",
+          pronunciation:
+            typeof p.pronunciation === "string"
+              ? p.pronunciation.trim().slice(0, 100)
+              : undefined,
+          context:
+            typeof p.context === "string"
+              ? p.context.trim().slice(0, 200)
+              : undefined,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+function sanitizeClientAiPrompt(
+  prompt: unknown
+): Record<string, unknown> | null {
+  if (!prompt || typeof prompt !== "object" || Array.isArray(prompt)) {
+    return null;
+  }
+  const p = prompt as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+
+  // Omit untrusted client-provided systemPrompt to prevent controlling agent prompt instructions
+  if (typeof p.openingMessage === "string" && p.openingMessage.trim()) {
+    result.openingMessage = p.openingMessage.trim().slice(0, 200);
+  }
+  if (Array.isArray(p.topics)) {
+    result.topics = p.topics
+      .filter((t): t is string => typeof t === "string" && Boolean(t.trim()))
+      .slice(0, 10)
+      .map((t) => t.trim().slice(0, 50));
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
 
 /**
  * POST /stream-call
  *
  * Creates (or gets) a Stream call server-side and returns the call info.
- * This ensures call creation is authorized and traceable.
+ * Requires Clerk authentication in the Authorization header.
+ * Derives userId server-side from the verified Clerk session.
  *
+ * Headers: Authorization: Bearer <clerk_session_token>
  * Body: {
  *   callId: string;
- *   userId: string;
  *   userName?: string;
  *   lessonTitle?: string;
  *   languageCode?: string;
@@ -27,10 +133,21 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const body = await request.json();
+    // 1. Authenticate caller using Clerk session token
+    let auth: { userId: string };
+    try {
+      auth = await verifyClerkSession(request);
+    } catch (authErr) {
+      const message =
+        authErr instanceof Error ? authErr.message : "Unauthorized";
+      return Response.json({ error: message }, { status: 401 });
+    }
+
+    const userId = auth.userId;
+
+    const body = (await request.json().catch(() => ({}))) as Record<string, any>;
     const {
       callId,
-      userId,
       userName,
       lessonId,
       lessonTitle,
@@ -42,7 +159,6 @@ export async function POST(request: Request): Promise<Response> {
       aiTeacherPrompt,
     } = body as {
       callId?: string;
-      userId?: string;
       userName?: string;
       lessonId?: string;
       lessonTitle?: string;
@@ -54,12 +170,60 @@ export async function POST(request: Request): Promise<Response> {
       aiTeacherPrompt?: Record<string, unknown>;
     };
 
-    if (!callId || !userId) {
+    if (!callId || typeof callId !== "string" || callId.length > 128) {
       return Response.json(
-        { error: "callId and userId are required" },
+        { error: "callId is required and must be a string up to 128 characters" },
         { status: 400 }
       );
     }
+
+    const rawLessonId =
+      typeof lessonId === "string" && lessonId.trim()
+        ? lessonId.trim().slice(0, 100)
+        : "";
+
+    // Load server-side lesson if a matching lessonId exists to prevent untrusted prompt control
+    const serverLesson = rawLessonId ? getLessonById(rawLessonId) : undefined;
+
+    const resolvedLessonId = serverLesson?.id || rawLessonId || "unknown";
+    const resolvedLessonTitle =
+      serverLesson?.title ||
+      (typeof lessonTitle === "string" && lessonTitle.trim()
+        ? lessonTitle.trim().slice(0, 100)
+        : "AI Audio Lesson");
+    const resolvedLanguageCode =
+      serverLesson?.languageCode ||
+      (typeof languageCode === "string" && languageCode.trim()
+        ? languageCode.trim().slice(0, 10)
+        : "es");
+    const resolvedLanguageName =
+      (serverLesson
+        ? getLanguageByCode(serverLesson.languageCode)?.name
+        : undefined) ||
+      (typeof languageName === "string" && languageName.trim()
+        ? languageName.trim().slice(0, 50)
+        : getLanguageByCode(resolvedLanguageCode)?.name || "Spanish");
+
+    const resolvedGoal = serverLesson?.goal
+      ? (serverLesson.goal as unknown as Record<string, unknown>)
+      : sanitizeGoal(goal);
+
+    const resolvedVocabulary = serverLesson?.vocabulary
+      ? (serverLesson.vocabulary as unknown as Record<string, unknown>[])
+      : sanitizeVocabulary(vocabulary);
+
+    const resolvedPhrases = serverLesson?.phrases
+      ? (serverLesson.phrases as unknown as Record<string, unknown>[])
+      : sanitizePhrases(phrases);
+
+    const resolvedAiTeacherPrompt = serverLesson?.aiTeacherPrompt
+      ? (serverLesson.aiTeacherPrompt as unknown as Record<string, unknown>)
+      : sanitizeClientAiPrompt(aiTeacherPrompt);
+
+    const resolvedCreatedBy =
+      typeof userName === "string" && userName.trim()
+        ? userName.trim().slice(0, 100)
+        : userId;
 
     const serverClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET, {
       timeout: 15000,
@@ -67,6 +231,24 @@ export async function POST(request: Request): Promise<Response> {
 
     // Create or get the call with lesson metadata
     const call = serverClient.video.call("default", callId);
+
+    // 2. Authorize access if the call already exists
+    try {
+      const existing = await call.get();
+      const createdById = existing.call?.created_by?.id;
+      const isMember = existing.members?.some(
+        (m: any) => m.user_id === userId || m.user?.id === userId
+      );
+
+      if (createdById && createdById !== userId && !isMember) {
+        return Response.json(
+          { error: "Forbidden: Not authorized to access this call" },
+          { status: 403 }
+        );
+      }
+    } catch {
+      // Call does not exist yet; proceed to create it
+    }
 
     await call.getOrCreate({
       data: {
@@ -76,15 +258,15 @@ export async function POST(request: Request): Promise<Response> {
           { user_id: "language_teacher_agent", role: "admin" },
         ],
         custom: {
-          lessonId: lessonId || "unknown",
-          lessonTitle: lessonTitle || "AI Audio Lesson",
-          languageCode: languageCode || "es",
-          languageName: languageName || "Spanish",
-          goal: goal || null,
-          vocabulary: vocabulary || [],
-          phrases: phrases || [],
-          aiTeacherPrompt: aiTeacherPrompt || null,
-          createdBy: userName || userId,
+          lessonId: resolvedLessonId,
+          lessonTitle: resolvedLessonTitle,
+          languageCode: resolvedLanguageCode,
+          languageName: resolvedLanguageName,
+          goal: resolvedGoal,
+          vocabulary: resolvedVocabulary,
+          phrases: resolvedPhrases,
+          aiTeacherPrompt: resolvedAiTeacherPrompt,
+          createdBy: resolvedCreatedBy,
         },
         settings_override: {
           audio: { mic_default_on: true, default_device: "speaker" },

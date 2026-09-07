@@ -18,7 +18,7 @@ Centered card on a neutral background. No sidebar, no nav - just the login form.
 
 **Behavior:**
 - Username input is **required**
-- On submit: `GET /api/token?user_id={username}` -> store credentials in **React state** (not localStorage - each tab must be independent)
+- On submit: authenticated `POST /api/token` (with Clerk session token) -> store credentials in **React state** (not localStorage - each tab must be independent)
 - After successful token fetch, render the main app UI (state gate, not redirect)
 - App name / use-case label above the input
 

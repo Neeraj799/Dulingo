@@ -16,7 +16,7 @@ This flow uses the **`getstream`** CLI (binary name `getstream`). It is the same
 
 ## Single upfront question (ask exactly once, then act immediately)
 
-Post one message asking all relevant things together. Do not split into multiple rounds. Include question 4 (demo data) **only when Chat is in scope** - for Video-only sessions, drop it (calls need no seed data):
+Post one message asking all relevant things together. Do not split into multiple rounds. Include question 4 (demo data) **when either Chat or Feeds is in scope** - for Video-only sessions, drop it (calls need no seed data):
 
 > To wire Stream with real data, I need a few quick answers:
 >
@@ -113,10 +113,13 @@ These calls are mutating. **All demo ids must be namespaced** so they cannot col
 Before running any `UpdateUsers` / `GetOrCreateChannel` / `SendMessage` / `GetOrCreateFollows` / `AddActivity` / `UpdateFeedGroup` / `AddActivityReaction`:
 
 1. **Generate a per-session demo prefix** and hold it in context. Default form: `demo-<short_random>-` where `<short_random>` is 4-6 lowercase chars (e.g., `demo-k3p9-`). Every demo user id, channel id, activity id, and seeded record custom field uses this prefix. Do not reuse a prefix across sessions - generate a fresh one each time so retries land in a fresh namespace.
-2. **Detect whether the selected app already has real data.** For Chat in scope, run `getstream api QueryChannels --request '{"filter_conditions":{"type":"messaging"},"limit":1}'`. For Feeds in scope, run `getstream api QueryActivities --request '{"limit":1}'`. Check whether either response includes records that do **not** start with a `demo-` prefix.
-3. **Confirm explicitly when the app is non-empty.** If real channels or activities exist, surface the count and a sample id, and require the user to type a confirmation before continuing:
-   > Selected Stream app `"<app_name>"` already has real data (e.g., `<example_cid_or_activity_id>`). I am about to create demo users / channels / follows / activities namespaced under `<demo_prefix>` so they cannot collide. Confirm with `seed demo` to proceed, or say `cancel`.
-4. **Empty / dev app:** announce and proceed without explicit confirmation:
+2. **Detect whether the selected app already has real data and query feed-group configuration.** For Chat in scope, run `getstream api QueryChannels --request '{"filter_conditions":{"type":"messaging"},"limit":1}'`. For Feeds in scope, run `getstream api QueryActivities --request '{"limit":1}'` to check whether records exist that do **not** start with a `demo-` prefix. In addition, when `UpdateFeedGroup` is in scope, query the existing `foryou` feed-group configuration via `getstream api GetFeedGroup --id foryou`.
+3. **Confirm explicitly when the app is non-empty or modifying shared feed groups.**
+   - If real channels or activities exist, surface the count and a sample id, and require the user to type a confirmation before continuing:
+     > Selected Stream app `"<app_name>"` already has real data (e.g., `<example_cid_or_activity_id>`). I am about to create demo users / channels / follows / activities namespaced under `<demo_prefix>` so they cannot collide. Confirm with `seed demo` to proceed, or say `cancel`.
+   - Before changing the shared `foryou` feed group via `UpdateFeedGroup`, require explicit user confirmation with its current configuration regardless of whether `QueryActivities` finds records:
+     > Selected Stream app `"<app_name>"` has existing feed group `foryou` (current selectors: `<current_selectors>`). I am about to configure it with the `popular` selector. Confirm with `update foryou` to proceed, or say `cancel`.
+4. **Empty / dev app:** announce and proceed without explicit confirmation only when no real channels/activities exist and no shared `foryou` group modification is pending (an empty activity result must not bypass confirmation when the shared `foryou` group exists):
    > Selected Stream app `"<app_name>"` looks empty. Creating namespaced demo data under prefix `<demo_prefix>` now.
 
 If the user cancels, stop Step C and return to Step D with credentials only.

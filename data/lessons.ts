@@ -1,4 +1,5 @@
 import type { Lesson } from "@/types/learning";
+import { getUnitById } from "./units";
 
 /**
  * All lessons across all available languages.
@@ -1150,5 +1151,16 @@ export function getLessonById(lessonId: string): Lesson | undefined {
 export function getLessonsByLanguage(languageCode: string): Lesson[] {
   return lessons
     .filter((l) => l.languageCode === languageCode)
-    .sort((a, b) => a.order - b.order);
+    .sort((a, b) => {
+      const unitA = getUnitById(a.unitId);
+      const unitB = getUnitById(b.unitId);
+      const unitOrderA = unitA?.order ?? 0;
+      const unitOrderB = unitB?.order ?? 0;
+
+      if (unitOrderA !== unitOrderB) {
+        return unitOrderA - unitOrderB;
+      }
+
+      return a.order - b.order;
+    });
 }

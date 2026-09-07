@@ -125,7 +125,7 @@ function WatchScreen({ callId }: { callId: string }) {
 
 ## Token route
 
-Single `/api/token` endpoint that mints all needed tokens in one round-trip:
+Single authenticated `POST /api/token` endpoint that mints all needed tokens in one round-trip, deriving the user ID server-side from Clerk:
 
 ```ts
 import { NextRequest, NextResponse } from "next/server";
@@ -137,21 +137,33 @@ const apiSecret = process.env.STREAM_API_SECRET!;
 const videoClient = new StreamClient(apiKey, apiSecret);
 const chatClient = StreamChat.getInstance(apiKey, apiSecret);
 
-export async function GET(req: NextRequest) {
-  const userId = req.nextUrl.searchParams.get("user_id");
-  if (!userId) return NextResponse.json({ error: "user_id required" }, { status: 400 });
+export async function POST(req: NextRequest) {
+  // Authenticate user server-side via Clerk — never accept caller-selected user_id
+  const auth = await getAuthenticatedUser(req);
+  if (!auth?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const userId = auth.userId;
   const sanitized = userId.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
 
   await Promise.all([
-    videoClient.upsertUsers([{ id: sanitized, name: userId, role: "user" }]),
-    chatClient.upsertUsers([{ id: sanitized, name: userId, role: "user" }]),
+    videoClient.upsertUsers([{ id: sanitized, name: auth.name || sanitized, role: "user" }]),
+    chatClient.upsertUsers([{ id: sanitized, name: auth.name || sanitized, role: "user" }]),
   ]);
+
+  // Video + Chat (Livestreaming): create the livestream chat channel keyed by call ID if requested
+  const body = await req.json().catch(() => ({}));
+  if (body?.callId) {
+    const channel = chatClient.channel("livestream", body.callId, {
+      created_by_id: sanitized,
+      members: [sanitized],
+    });
+    await channel.create();
+  }
 
   return NextResponse.json({
     apiKey,
     userId: sanitized,
-    name: userId,
+    name: auth.name || sanitized,
     chatToken: chatClient.createToken(sanitized),
     videoToken: videoClient.generateUserToken({ user_id: sanitized }),
     feedToken: videoClient.generateUserToken({ user_id: sanitized }),

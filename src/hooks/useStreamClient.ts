@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NativeModules, Platform } from "react-native";
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { getApiUrl } from "@/lib/api";
 
 /**
@@ -21,6 +21,7 @@ type AnyStreamVideoClient = any;
 const STREAM_API_KEY = process.env.EXPO_PUBLIC_STREAM_API_KEY!;
 
 export function useStreamClient() {
+  const { getToken } = useAuth();
   const { user, isSignedIn } = useUser();
   const [client, setClient] = useState<AnyStreamVideoClient | undefined>();
   const [isReady, setIsReady] = useState(
@@ -70,11 +71,16 @@ export function useStreamClient() {
         };
 
         const tokenProvider = async (): Promise<string> => {
+          const sessionToken = await getToken();
           const res = await fetch(getApiUrl("/stream-token"), {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...(sessionToken
+                ? { Authorization: `Bearer ${sessionToken}` }
+                : {}),
+            },
             body: JSON.stringify({
-              userId: user.id,
               userName: streamUser.name,
             }),
           });

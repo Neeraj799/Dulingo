@@ -9,6 +9,7 @@ allowed-tools: >-
   Read, Write, Edit, Glob, Grep, Task,
   WebFetch(domain:getstream.io),
   WebFetch(domain:raw.githubusercontent.com),
+  Bash(bash -c *),
   Bash(ls *), Bash(find . *), Bash(grep *), Bash(awk *), Bash(tail *), Bash(sips *),
   Bash(cat package.json), Bash(cat app.json), Bash(cat app.config.js), Bash(cat app.config.ts),
   Bash(cat babel.config.js), Bash(cat metro.config.js),
@@ -51,7 +52,7 @@ Before any tool call, decide the track from the user's input alone. Do not probe
 |---|---|
 | "Build/create/scaffold a new React Native app", "create an Expo app", "new Stream Chat RN app", "new Stream Video RN app", "new Stream Feeds RN app", empty directory + React Native/Expo Chat / Video / Feeds | **A - New app** |
 | "Upgrade/migrate/bump a Stream SDK version", "upgrade stream-chat-react-native to v9", "migrate Chat RN to the new SDK", "v8 to v9", "bump Stream Video/Feeds", "Feeds v2 -> v3" | **M - Migrate / upgrade** |
-| "Migrate from Sendbird", "replace Sendbird with Stream", "we're switching off Sendbird", "rip out @sendbird/uikit-react-native", "convert SendbirdUIKitContainer / createGroupChannelFragment to Stream", `@sendbird/chat` / `@sendbird/uikit-react-native` / `-foundation` present in the target's `package.json` | **S - Migrate from Sendbird** |
+| "Migrate from Sendbird", "replace Sendbird with Stream", "we're switching off Sendbird", "rip out @sendbird/uikit-react-native", "convert SendbirdUIKitContainer / createGroupChannelFragment to Stream" | **S - Migrate from Sendbird** |
 | "Add/integrate Stream Chat into this app", "wire Chat RN", "set up stream-chat-expo", "add a video call", "wire Stream Video", "set up @stream-io/video-react-native-sdk", "add an activity feed", "wire Stream Feeds", "set up @stream-io/feeds-react-native-sdk", "change/customize this Chat / Video / Feeds UI" | **B - Existing app** |
 | `React Native`, `Expo`, `Expo Router`, `stream-chat-react-native`, `stream-chat-expo`, `@stream-io/video-react-native-sdk`, `@stream-io/feeds-react-native-sdk`, `Stream Chat RN`, `Stream Video RN`, `Stream Feeds RN`, `Chat React Native`, `Video React Native`, `Feeds React Native`, migration | **C - Reference lookup** if the user only asks how/docs; otherwise **B - Existing app** |
 | Explicit product/runtime token: `Chat React Native`, `Chat Expo`, `Video React Native`, `Video Expo`, `Feeds React Native`, `Feeds Expo` | **C - Reference lookup** |
@@ -95,7 +96,7 @@ Do not invent missing React Native Moderation API details from memory.
 
 ### After classification
 
-- **Tracks A, B, D** -> run Project signals, then continue in [`builder.md`](builder.md) and [`sdk.md`](sdk.md). Run [`credentials.md`](credentials.md) before writing Chat, Video, or Feeds connection code or creating requested demo data.
+- **Tracks A, B, D** -> run Project signals. If Sendbird packages are present in `package.json`, re-evaluate and switch to **Track S** before applying any package or UI changes. Otherwise, continue in [`builder.md`](builder.md) and [`sdk.md`](sdk.md). Run [`credentials.md`](credentials.md) before writing Chat, Video, or Feeds connection code or creating requested demo data.
 - **Track M** -> Read [`migrate.md`](migrate.md) first; it fetches the live upgrade guide before any edit. Run Project signals for lane / package-manager / New-Architecture detection, but **skip credentials, provisioning, and the scaffold path** - it edits an existing project.
 - **Track S** -> Read [`sendbird-migration.md`](sendbird-migration.md) first; it detects the Sendbird integration shape (and the Expo-vs-bare flavor) before any edit. Run Project signals for lane / package-manager / New-Architecture detection, but **do not enter Track A/B/D or any scaffold path** - it re-implements an existing Sendbird integration in place.
 - **Track C** -> skip credentials and project probes if the product + runtime are explicit. Only run a read-only probe if RN CLI vs Expo is ambiguous and the answer affects the guidance.
@@ -122,7 +123,7 @@ For Track A, it is acceptable to scaffold the app first if the runtime or target
 Read-only local probe. Use it to detect empty/new workspace, RN CLI vs Expo, New Architecture hints, navigation setup, and existing Stream packages.
 
 ```bash
-bash -c 'echo "=== PACKAGE ==="; test -f package.json && grep -oE "\"(stream-chat-react-native|stream-chat-expo|@stream-io/video-react-native-sdk|@stream-io/feeds-react-native-sdk|@stream-io/react-native-webrtc|@stream-io/react-native-callingx|react-native|expo|@react-navigation/[^\"]+|expo-router|react-native-reanimated|react-native-worklets|react-native-teleport|@op-engineering/op-sqlite)\": *\"[^\"]*\"" package.json 2>/dev/null; echo "=== EXPO ==="; find . -maxdepth 2 \( -name "app.json" -o -name "app.config.js" -o -name "app.config.ts" -o -path "./app/_layout.*" \) -print 2>/dev/null; echo "=== NATIVE ==="; find . -maxdepth 2 \( -name "ios" -o -name "android" \) -type d -print 2>/dev/null; echo "=== CONFIG ==="; find . -maxdepth 2 \( -name "babel.config.js" -o -name "metro.config.js" \) -print 2>/dev/null; echo "=== EXPO_SDK ==="; node -e "try{console.log(require(\"./node_modules/expo/package.json\").version)}catch(e){try{console.log(require(\"./package.json\").dependencies.expo)}catch(e){console.log(\"-\")}}" 2>/dev/null; echo "=== EMPTY ==="; test -z "$(ls -A 2>/dev/null)" && echo "EMPTY_CWD" || echo "NON_EMPTY"'
+bash -c 'echo "=== PACKAGE ==="; test -f package.json && grep -oE "\"(stream-chat-react-native|stream-chat-expo|@stream-io/video-react-native-sdk|@stream-io/feeds-react-native-sdk|@stream-io/react-native-webrtc|@stream-io/react-native-callingx|@sendbird/chat|@sendbird/uikit-react-native|@sendbird/uikit-react-native-foundation|react-native|expo|@react-navigation/[^\"]+|expo-router|react-native-reanimated|react-native-worklets|react-native-teleport|@op-engineering/op-sqlite)\": *\"[^\"]*\"" package.json 2>/dev/null; echo "=== EXPO ==="; find . -maxdepth 2 \( -name "app.json" -o -name "app.config.js" -o -name "app.config.ts" -o -path "./app/_layout.*" \) -print 2>/dev/null; echo "=== NATIVE ==="; find . -maxdepth 2 \( -name "ios" -o -name "android" \) -type d -print 2>/dev/null; echo "=== CONFIG ==="; find . -maxdepth 2 \( -name "babel.config.js" -o -name "metro.config.js" \) -print 2>/dev/null; echo "=== EXPO_SDK ==="; node -e "try{console.log(require(\"./node_modules/expo/package.json\").version)}catch(e){try{console.log(require(\"./package.json\").dependencies.expo)}catch(e){console.log(\"-\")}}" 2>/dev/null; echo "=== EMPTY ==="; test -z "$(ls -A 2>/dev/null)" && echo "EMPTY_CWD" || echo "NON_EMPTY"'
 ```
 
 Hold the result in conversation context. Do not re-run unless the user changes directory, packages are installed, or the project shape changes.
@@ -138,7 +139,10 @@ Use the result to produce a one-line status, for example:
 - `RN CLI app detected - ios/android present - stream-chat-react-native installed - checking provider placement`
 - `RN CLI app detected - both @stream-io/video-react-native-sdk and stream-chat-react-native installed - Chat + Video interop applies`
 - `Expo app detected - @stream-io/feeds-react-native-sdk and stream-chat-expo installed - nest StreamFeeds + Chat providers (no sibling mounts)`
+- `Sendbird packages detected (@sendbird/chat / @sendbird/uikit-react-native) - switch to Track S before applying package or UI changes`
 - `No RN/Expo app detected in a non-empty directory - create a new app in a child directory or ask before reusing this directory`
+
+**Track decision after probe:** If Sendbird packages are present in `package.json`, re-evaluate the track and select **Track S** ([`sendbird-migration.md`](sendbird-migration.md)) before applying any package or UI changes. Do not proceed with Track A scaffolding or Track B feature wiring.
 
 If there is no RN/Expo project and Track A applies, scaffold one through [`builder.md`](builder.md) > **2. New app scaffold**. If Track B/D applies in a non-RN directory, ask before creating a child app because that changes project ownership.
 
@@ -246,7 +250,7 @@ The cross-cutting reasoning rules that catch these live in [`references/design-m
 | Phase | Name | What you do |
 |---|---|---|
 | **B1** | Detect | Run Project signals and inspect existing app structure before editing. Note any existing Chat / Video / Feeds packages. |
-| **B2** | Preserve | Keep Expo/RN CLI lane, package manager, navigation stack, and auth architecture. If the user asks to **upgrade/migrate an SDK version**, that is **Track M** -> [`migrate.md`](migrate.md), not a Track B edit. |
+| **B2** | Preserve | Keep Expo/RN CLI lane, package manager, navigation stack, and auth architecture. If Sendbird packages are present, switch to **Track S** -> [`sendbird-migration.md`](sendbird-migration.md) before applying any package or UI changes. If the user asks to **upgrade/migrate an SDK version**, that is **Track M** -> [`migrate.md`](migrate.md), not a Track B edit. |
 | **B3** | Integrate | Use `llms.txt` lookup for the requested area, then load only the Chat / Video / Feeds reference/blueprint sections needed. |
 | **B4** | Verify | Confirm the requested Stream Chat / Video / Feeds flow builds and renders in the existing app. |
 
@@ -301,7 +305,7 @@ Use when the user wants package install and shared wiring more than a full featu
 
 ## Track S - Migrate from Sendbird
 
-**Full detail:** [`sendbird-migration.md`](sendbird-migration.md) - Read it first. It detects the existing Sendbird integration shape **and** the Expo-vs-bare flavor, then re-implements each touchpoint **in place** against the grounded Sendbird<->Stream mapping ([`references/sendbird-notes.md`](references/sendbird-notes.md) + [`references/sendbird-symbols.tsv`](references/sendbird-symbols.tsv)), and finally offers the separate server-side data migration. Not a scaffold track: **do not enter Track A/B/D**. The compiler is the oracle - never migrate from memory ([`references/sendbird-notes.md`](references/sendbird-notes.md) > Trust model).
+**Full detail:** [`sendbird-migration.md`](sendbird-migration.md) - Read it first. Selected directly from user input or re-evaluated after inspecting project signals when Sendbird packages are present in `package.json`. It detects the existing Sendbird integration shape **and** the Expo-vs-bare flavor, then re-implements each touchpoint **in place** against the grounded Sendbird<->Stream mapping ([`references/sendbird-notes.md`](references/sendbird-notes.md) + [`references/sendbird-symbols.tsv`](references/sendbird-symbols.tsv)), and finally offers the separate server-side data migration. Not a scaffold track: **do not enter Track A/B/D**. The compiler is the oracle - never migrate from memory ([`references/sendbird-notes.md`](references/sendbird-notes.md) > Trust model).
 
 | Phase | Name | What you do |
 |---|---|---|

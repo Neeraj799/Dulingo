@@ -31,9 +31,9 @@ No CLI commands needed - built-in channel types (`messaging`, `team`, `livestrea
 
 ### Server Routes
 
-| Route | Method | Params | Action | Response |
+| Route | Method | Auth / Params | Action | Response |
 |---|---|---|---|---|
-| `/api/token` | GET | `?user_id=xxx` | `client.upsertUsers([{ id, name, role: 'user' }])`, `client.createToken(userId)` | `{ chatToken, apiKey }` |
+| `/api/token` | POST | `Authorization: Bearer <clerk_token>` | Authenticate user via Clerk server-side, `client.upsertUsers([{ id: auth.userId, name, role: 'user' }])`, `client.createToken(auth.userId)` | `{ chatToken, apiKey }` |
 
 See RULES.md > No auto-seeding.
 
@@ -84,6 +84,6 @@ const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!, p
 - Listen for `user.banned` event to show banned state in UI
 - Import `stream-chat-react/css/index.css` for default styles - the preferred aliased path (`dist/css/index.css` also resolves; v14+, the `/v2/` subpath was removed)
 - `MessageInput` was renamed/removed in v14 - use `MessageComposer` from `stream-chat-react` instead
-- Token endpoint as `GET /api/token?user_id=xxx`
+- Token endpoint as authenticated `POST /api/token` (derives user ID server-side from Clerk)
 - `upsertUsers` takes an **array** of user objects: `client.upsertUsers([{ id, name, role }])` - NOT an object keyed by ID
 - `<Chat>` lives at app root; `<Channel>` is what swaps per conversation. Don't construct/destruct `StreamChat` per screen.

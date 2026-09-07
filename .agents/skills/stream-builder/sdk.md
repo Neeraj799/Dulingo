@@ -7,7 +7,7 @@ Product-specific SDK wiring, gotchas, and client patterns: see [`references/*.md
 
 ## Token endpoint pattern (all products)
 
-`GET /api/token?user_id=xxx` - upsert the requesting user only (RULES.md > No auto-seeding), return per-product tokens.
+Authenticated `POST /api/token` - derive user ID server-side from Clerk (never accept `user_id` from caller), upsert the requesting user only (RULES.md > No auto-seeding), return per-product tokens.
 
 **Combined token route** when multiple products are used:
 

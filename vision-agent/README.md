@@ -18,9 +18,9 @@ The AI teacher always speaks English by default while teaching the selected targ
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+uv sync
 # or
-pip install vision-agents vision-agents-plugins-openai vision-agents-plugins-getstream python-dotenv
+pip install vision-agents vision-agents-plugins-openai vision-agents-plugins-gemini vision-agents-plugins-getstream python-dotenv
 ```
 
 ## Running the Service

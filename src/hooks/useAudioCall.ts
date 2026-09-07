@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NativeModules, PermissionsAndroid, Platform } from "react-native";
+import { useAuth } from "@clerk/expo";
 import { getApiUrl } from "@/lib/api";
 
 /**
@@ -92,6 +93,7 @@ interface UseAudioCallReturn {
 export function useAudioCall(
   options: UseAudioCallOptions
 ): UseAudioCallReturn {
+  const { getToken } = useAuth();
   const {
     lessonId,
     languageCode,
@@ -118,6 +120,29 @@ export function useAudioCall(
   const cleanupRef = useRef<(() => void) | null>(null);
   const mountedRef = useRef(true);
   const agentStateRef = useRef<AgentState>("idle");
+  const sessionTokenRef = useRef<string | null>(null);
+
+  // Sync latest Clerk session token
+  useEffect(() => {
+    let cancelled = false;
+    getToken().then((token) => {
+      if (!cancelled && token) {
+        sessionTokenRef.current = token;
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken]);
+
+  const getAuthHeader = useCallback(async (): Promise<Record<string, string>> => {
+    const token = (await getToken()) || sessionTokenRef.current;
+    if (token) {
+      sessionTokenRef.current = token;
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  }, [getToken]);
 
   // Cleanup on unmount: stop agent session & leave the call if still active
   useEffect(() => {
@@ -127,16 +152,30 @@ export function useAudioCall(
       mountedRef.current = false;
       agentStateRef.current = "idle";
 
+      // Release interval, subscriptions, and call listeners
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+
       // 1. Clean up Vision Agent session on unmount
       if (callIdRef.current) {
         const activeCallId = callIdRef.current;
         const activeSessionId = sessionIdRef.current;
+        const activeToken = sessionTokenRef.current;
         callIdRef.current = null;
         sessionIdRef.current = null;
 
+        const stopHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (activeToken) {
+          stopHeaders.Authorization = `Bearer ${activeToken}`;
+        }
+
         fetch(getApiUrl("/agent-stop"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: stopHeaders,
           body: JSON.stringify({
             callId: activeCallId,
             sessionId: activeSessionId || undefined,
@@ -190,6 +229,7 @@ export function useAudioCall(
       setError(null);
 
       // 1. Create call server-side with packed lesson context and unique session suffix
+      const authHeader = await getAuthHeader();
       const sessionSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       const safeUserId = (userId || "learner").replace(/[^a-zA-Z0-9_-]/g, "_").slice(-12);
       const callId = `lesson-${lessonId}-${safeUserId}-${sessionSuffix}`.replace(
@@ -200,10 +240,12 @@ export function useAudioCall(
 
       const createRes = await fetch(getApiUrl("/stream-call"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        } as Record<string, string>,
         body: JSON.stringify({
           callId,
-          userId,
           userName,
           lessonId,
           lessonTitle,
@@ -249,10 +291,16 @@ export function useAudioCall(
         apiKey: process.env.EXPO_PUBLIC_STREAM_API_KEY!,
         user: { id: userId, name: userName },
         tokenProvider: async () => {
+          const sessionToken = await getToken();
           const res = await fetch(getApiUrl("/stream-token"), {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, userName }),
+            headers: {
+              "Content-Type": "application/json",
+              ...(sessionToken
+                ? { Authorization: `Bearer ${sessionToken}` }
+                : {}),
+            },
+            body: JSON.stringify({ userName }),
           });
           if (!res.ok) {
             throw new Error(`Token fetch failed: ${res.status}`);
@@ -275,7 +323,13 @@ export function useAudioCall(
 
       await call.join({ create: true });
 
-      if (!mountedRef.current) return;
+      if (!mountedRef.current) {
+        call.leave().catch((err: unknown) =>
+          console.error("Call leave on unmount error:", err)
+        );
+        callRef.current = null;
+        return;
+      }
 
       // 4. Disable camera (audio only)
       try {
@@ -305,9 +359,13 @@ export function useAudioCall(
       agentStateRef.current = "connecting";
       setAgentState("connecting");
       try {
+        const agentAuthHeader = await getAuthHeader();
         const agentStartRes = await fetch(getApiUrl("/agent-start"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...agentAuthHeader,
+          } as Record<string, string>,
           body: JSON.stringify({ callId, callType: "default" }),
         });
 
@@ -445,6 +503,8 @@ export function useAudioCall(
     vocabulary,
     phrases,
     aiTeacherPrompt,
+    getToken,
+    getAuthHeader,
   ]);
 
   const endCall = useCallback(async () => {
@@ -456,9 +516,13 @@ export function useAudioCall(
       sessionIdRef.current = null;
 
       try {
+        const authHeader = await getAuthHeader();
         await fetch(getApiUrl("/agent-stop"), {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeader,
+          } as Record<string, string>,
           body: JSON.stringify({
             callId: activeCallId,
             sessionId: activeSessionId || undefined,
@@ -504,7 +568,7 @@ export function useAudioCall(
         setParticipantCount(0);
       }
     }
-  }, []);
+  }, [getAuthHeader]);
 
   const toggleMute = useCallback(async () => {
     const call = callRef.current;

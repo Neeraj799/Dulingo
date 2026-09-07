@@ -10,7 +10,7 @@ Rules: [../../stream/RULES.md](../../stream/RULES.md) (secrets, no auto-seeding,
 
 ## Quick ref
 
-- **Packages:** `@stream-io/feeds-react-sdk` (client - re-exports `@stream-io/feeds-client` + React bindings), `@stream-io/node-sdk` (server - token generation + user upsert only)
+- **Packages:** `@stream-io/feeds-react-sdk` (client - re-exports `@stream-io/feeds-client` + React bindings), `@stream-io/node-sdk` (server - token generation, user upsert, and server-side feed mutations via `client.feeds`)
 - **No CSS import** - SDK is headless, all styling is yours
 - **First:** **App Integration** -> **Setup** (CLI / feed groups) before UI.
 - **Per feature:** Jump to section (Feed List, Post Card, ...) when implementing that screen.
@@ -48,9 +48,9 @@ Default feed groups on a Feeds v3 app:
 
 Most feed mutations (post, react, comment, bookmark) happen **client-side** via the `FeedsClient` from `@stream-io/feeds-react-sdk`. The server is used for token generation, user upsert, and **cross-product mutations** (e.g. posting live activities from an API route).
 
-| Route | Method | Params | Action | Response |
+| Route | Method | Auth / Params | Action | Response |
 |---|---|---|---|---|
-| `/api/token` | GET | `?user_id=xxx` | `client.upsertUsers([{ id, name, role: 'user' }])`, `client.generateUserToken({ user_id })` | `{ feedToken, apiKey, userId }` |
+| `/api/token` | POST | `Authorization: Bearer <clerk_token>` | Authenticate user via Clerk server-side, `client.upsertUsers([{ id: auth.userId, name, role: 'user' }])`, `client.generateUserToken({ user_id: auth.userId })` | `{ feedToken, apiKey, userId }` |
 
 See RULES.md > No auto-seeding.
 
@@ -269,7 +269,7 @@ const result = await feed.addActivity({ type: 'post', text: 'Hello world' });
 // result.activity - full ActivityResponse of the created post
 
 // Activities - via FeedsClient (for multi-feed posts)
-await client.addActivity({ feeds: ['user:community'], type: 'post', text });
+await client.addActivity({ feeds: [`user:${userId}`], type: 'post', text });
 
 // Delete activity
 await client.deleteActivity({ id: activityId });

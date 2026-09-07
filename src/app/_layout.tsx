@@ -68,7 +68,7 @@ function InitialLayout() {
     // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
     if (!isLoaded || !hasHydrated) return;
 
-    const currentSegment = segments[0] || "";
+    const currentSegment = (segments[0] as string) || "";
 
     const inAuthFlow =
       currentSegment === "onboarding" ||
@@ -76,8 +76,8 @@ function InitialLayout() {
       currentSegment === "sign-in" ||
       currentSegment === "sso-callback";
 
-    const inTabs = currentSegment === "(tabs)";
     const inLanguageSelect = currentSegment === "language-select";
+    const inEntryRoute = currentSegment === "" || currentSegment === "index";
 
     if (!isSignedIn) {
       // Unauthenticated users always go to onboarding.
@@ -104,7 +104,7 @@ function InitialLayout() {
       return;
     }
 
-    if (selectedLanguageCode && !inTabs && !inLanguageSelect) {
+    if (selectedLanguageCode && inEntryRoute && !inLanguageSelect && !inAuthFlow) {
       // Signed-in with language — redirect to tabs.
       router.replace("/(tabs)/home");
     }

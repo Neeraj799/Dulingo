@@ -1,4 +1,5 @@
 import { StreamClient } from "@stream-io/node-sdk";
+import { verifyClerkSession } from "@/lib/clerk";
 
 const STREAM_API_KEY = process.env.STREAM_API_KEY;
 const STREAM_API_SECRET = process.env.STREAM_API_SECRET;
@@ -6,11 +7,13 @@ const STREAM_API_SECRET = process.env.STREAM_API_SECRET;
 /**
  * POST /stream-token
  *
- * Generates a Stream Video user token server-side.
+ * Generates a Stream Video user token server-side for the authenticated Clerk user.
+ * Requires a valid Clerk session bearer token in the Authorization header.
  * The Stream API secret never leaves this route.
  *
- * Body: { userId: string; userName?: string }
- * Returns: { token: string; apiKey: string }
+ * Headers: Authorization: Bearer <clerk_session_token>
+ * Body: { userName?: string }
+ * Returns: { token: string; apiKey: string; userId: string }
  */
 export async function POST(request: Request): Promise<Response> {
   try {
@@ -21,22 +24,27 @@ export async function POST(request: Request): Promise<Response> {
       );
     }
 
-    const body = await request.json();
-    const { userId, userName } = body as {
-      userId?: string;
+    // 1. Authenticate caller using Clerk session token
+    let auth: { userId: string };
+    try {
+      auth = await verifyClerkSession(request);
+    } catch (authErr) {
+      const message =
+        authErr instanceof Error ? authErr.message : "Unauthorized";
+      return Response.json({ error: message }, { status: 401 });
+    }
+
+    const userId = auth.userId;
+
+    // 2. Parse optional request body for display name only
+    const body = (await request.json().catch(() => ({}))) as {
       userName?: string;
     };
-
-    if (!userId) {
-      return Response.json(
-        { error: "userId is required" },
-        { status: 400 }
-      );
-    }
+    const userName = body?.userName;
 
     const serverClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
 
-    // Upsert the user so Stream knows about them
+    // 3. Upsert the authenticated user so Stream knows about them
     await serverClient.upsertUsers([
       {
         id: userId,
@@ -45,7 +53,7 @@ export async function POST(request: Request): Promise<Response> {
       },
     ]);
 
-    // Generate a ~4-hour token
+    // 4. Generate a ~4-hour token for the authenticated user ID
     const token = serverClient.generateUserToken({
       user_id: userId,
       validity_in_seconds: 60 * 60 * 4,
@@ -54,6 +62,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({
       token,
       apiKey: STREAM_API_KEY,
+      userId,
     });
   } catch (error) {
     console.error("Stream token generation failed:", error);
