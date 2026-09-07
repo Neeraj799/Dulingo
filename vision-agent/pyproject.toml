@@ -1,0 +1,17 @@
+[project]
+name = "vision-agent"
+version = "0.1.0"
+description = "AI Language Teacher Voice Agent using Vision Agents, OpenAI Realtime, and Stream Edge"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "vision-agents>=0.6.9",
+    "vision-agents-plugins-openai>=0.6.9",
+    "vision-agents-plugins-gemini>=0.6.9",
+    "vision-agents-plugins-getstream>=0.6.9",
+    "python-dotenv>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

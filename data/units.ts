@@ -39,7 +39,7 @@ export const units: Unit[] = [
     lessonIds: ["es-u2-l1", "es-u2-l2", "es-u2-l3"],
   },
 
-  // ── FRENCH (2 units) ──
+  // ── FRENCH (1 unit) ──
   {
     id: "fr-unit-1",
     languageCode: "fr",
@@ -51,19 +51,8 @@ export const units: Unit[] = [
     totalLessons: 3,
     lessonIds: ["fr-u1-l1", "fr-u1-l2", "fr-u1-l3"],
   },
-  {
-    id: "fr-unit-2",
-    languageCode: "fr",
-    title: "Au Café & Food",
-    description: "Order croissants, café au lait, and ask for the bill.",
-    order: 2,
-    color: "#FF4B4B",
-    icon: "🥐",
-    totalLessons: 0,
-    lessonIds: [],
-  },
 
-  // ── JAPANESE (2 units) ──
+  // ── JAPANESE (1 unit) ──
   {
     id: "ja-unit-1",
     languageCode: "ja",
@@ -74,17 +63,6 @@ export const units: Unit[] = [
     icon: "🎌",
     totalLessons: 3,
     lessonIds: ["ja-u1-l1", "ja-u1-l2", "ja-u1-l3"],
-  },
-  {
-    id: "ja-unit-2",
-    languageCode: "ja",
-    title: "At the Ramen Shop",
-    description: "Order delicious food and drinks in Tokyo cafés & restaurants.",
-    order: 2,
-    color: "#FF9600",
-    icon: "🍜",
-    totalLessons: 0,
-    lessonIds: [],
   },
 
   // ── KOREAN (2 units) ──

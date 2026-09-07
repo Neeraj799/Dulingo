@@ -1,10 +1,11 @@
 import { useLanguageStore } from "@/store/useLanguageStore";
+import { useStreamClient } from "@/hooks/useStreamClient";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Platform, NativeModules } from "react-native";
 import "../../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -59,7 +60,7 @@ function InitialLayout() {
 
   useEffect(() => {
     if (isLoaded && hasHydrated) {
-      SplashScreen.hideAsync().catch(() => {});
+      SplashScreen.hideAsync().catch(() => { });
     }
   }, [isLoaded, hasHydrated]);
 
@@ -67,7 +68,7 @@ function InitialLayout() {
     // Wait for both Clerk auth state and Zustand AsyncStorage rehydration.
     if (!isLoaded || !hasHydrated) return;
 
-    const currentSegment = segments[0] || "";
+    const currentSegment = (segments[0] as string) || "";
 
     const inAuthFlow =
       currentSegment === "onboarding" ||
@@ -75,8 +76,8 @@ function InitialLayout() {
       currentSegment === "sign-in" ||
       currentSegment === "sso-callback";
 
-    const inTabs = currentSegment === "(tabs)";
     const inLanguageSelect = currentSegment === "language-select";
+    const inEntryRoute = currentSegment === "" || currentSegment === "index";
 
     if (!isSignedIn) {
       // Unauthenticated users always go to onboarding.
@@ -103,7 +104,7 @@ function InitialLayout() {
       return;
     }
 
-    if (selectedLanguageCode && !inTabs && !inLanguageSelect) {
+    if (selectedLanguageCode && inEntryRoute && !inLanguageSelect && !inAuthFlow) {
       // Signed-in with language — redirect to tabs.
       router.replace("/(tabs)/home");
     }
@@ -117,6 +118,39 @@ function InitialLayout() {
         headerShown: false,
       }}
     />
+  );
+}
+
+/**
+ * Conditionally wraps children with `<StreamVideo>` when the native Stream
+ * client is ready. On web the provider is skipped (the SDK is native-only).
+ */
+function StreamVideoProvider({ children }: { children: React.ReactNode }) {
+  const { client } = useStreamClient();
+
+  const [StreamVideoComponent, setStreamVideoComponent] = useState<any>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || !NativeModules?.WebRTCModule) return;
+
+    import("@stream-io/video-react-native-sdk")
+      .then((mod) => {
+        setStreamVideoComponent(() => mod.StreamVideo);
+      })
+      .catch((err) => {
+        console.warn("Failed to load StreamVideo SDK:", err);
+      });
+  }, []);
+
+  // On web or while loading the SDK module, render children without the provider.
+  if (Platform.OS === "web" || !StreamVideoComponent || !client) {
+    return <>{children}</>;
+  }
+
+  return (
+    <StreamVideoComponent client={client}>
+      {children}
+    </StreamVideoComponent>
   );
 }
 
@@ -134,7 +168,9 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} >
-      <InitialLayout />
+      <StreamVideoProvider>
+        <InitialLayout />
+      </StreamVideoProvider>
     </ClerkProvider>
   );
 }

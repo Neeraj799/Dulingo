@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, Platform, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { posthog } from "@/config/posthog";
 import { images } from "../../constants/images";
@@ -106,14 +106,20 @@ export default function OnboardingScreen() {
             activeOpacity={0.85}
             onPress={handleGetStarted}
             className="bg-lingua-purple rounded-3xl h-[56px] px-6 flex-row items-center justify-between shadow-md"
-            style={{
-              backgroundColor: "#6C4EF5",
-              shadowColor: "#6C4EF5",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
+            style={Platform.select({
+              web: {
+                backgroundColor: "#6C4EF5",
+                boxShadow: "0px 4px 8px rgba(108, 78, 245, 0.3)",
+              },
+              default: {
+                backgroundColor: "#6C4EF5",
+                shadowColor: "#6C4EF5",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              },
+            })}
           >
             <View className="w-6" />
             <Text className="text-white text-lg font-semibold text-center flex-1">

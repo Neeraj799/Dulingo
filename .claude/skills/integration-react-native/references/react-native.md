@@ -479,8 +479,8 @@ Using `identify`, you can associate events with specific users. This enables you
 
 An `identify` call has the following arguments:
 
--   **distinctId:** Required. A unique identifier for your user. Typically either their email or database ID.
--   **properties:** Optional. A dictionary with key:value pairs to set the [person properties](/docs/product-analytics/person-properties.md)
+-   **distinctId:** Required. A unique identifier for your user. We recommend only using an opaque, immutable internal user ID from your database.
+-   **properties:** Optional. A dictionary with key:value pairs to set the [person properties](/docs/product-analytics/person-properties.md) (values like email should be stored as person properties rather than used as a distinct ID).
 
 ```jsx
 posthog.identify('distinctID',
