@@ -1,10 +1,11 @@
 import { useLanguageStore } from "@/store/useLanguageStore";
+import { useStreamClient } from "@/hooks/useStreamClient";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { Platform } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Platform, NativeModules } from "react-native";
 import "../../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -120,6 +121,39 @@ function InitialLayout() {
   );
 }
 
+/**
+ * Conditionally wraps children with `<StreamVideo>` when the native Stream
+ * client is ready. On web the provider is skipped (the SDK is native-only).
+ */
+function StreamVideoProvider({ children }: { children: React.ReactNode }) {
+  const { client } = useStreamClient();
+
+  const [StreamVideoComponent, setStreamVideoComponent] = useState<any>(null);
+
+  useEffect(() => {
+    if (Platform.OS === "web" || !NativeModules?.WebRTCModule) return;
+
+    import("@stream-io/video-react-native-sdk")
+      .then((mod) => {
+        setStreamVideoComponent(() => mod.StreamVideo);
+      })
+      .catch((err) => {
+        console.warn("Failed to load StreamVideo SDK:", err);
+      });
+  }, []);
+
+  // On web or while loading the SDK module, render children without the provider.
+  if (Platform.OS === "web" || !StreamVideoComponent || !client) {
+    return <>{children}</>;
+  }
+
+  return (
+    <StreamVideoComponent client={client}>
+      {children}
+    </StreamVideoComponent>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     "Poppins-Regular": require("../../assets/fonts/Poppins-Regular.ttf"),
@@ -134,7 +168,9 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache} >
-      <InitialLayout />
+      <StreamVideoProvider>
+        <InitialLayout />
+      </StreamVideoProvider>
     </ClerkProvider>
   );
 }

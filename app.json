@@ -21,7 +21,7 @@
       "package": "com.neeraj297.dulingo"
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -36,7 +36,26 @@
           "imageWidth": 76
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "@stream-io/video-react-native-sdk",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "$(PRODUCT_NAME) requires camera access for video lessons",
+          "microphonePermission": "$(PRODUCT_NAME) requires microphone access for audio lessons"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "extraGradleProps": {
+              "org.gradle.jvmargs": "-Xmx2048m -XX:MaxMetaspaceSize=512m --enable-native-access=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED"
+            }
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
