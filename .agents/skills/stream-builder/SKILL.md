@@ -9,7 +9,7 @@ allowed-tools: >-
   Bash(getstream *),
   Bash(npx *), Bash(npm install *), Bash(npm run *),
   Bash(node -e *), Bash(node --version), Bash(openssl rand *),
-  Bash(mv .scaffold*), Bash(rm -rf .scaffold*),
+  Bash(mv .scaffold*), Bash(rm -rf .scaffold/.git), Bash(rm -rf .scaffold),
   Bash(ls *), Bash(test *),
   Bash(grep *),
   Bash(cat package.json), Bash(cat pubspec.yaml),
@@ -140,7 +140,7 @@ Print this disclosure verbatim, then stop and wait for the user's answer:
 
 - **User agrees** -> run:
   ```bash
-  npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices -y && npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines -y && npx skills@1.5.24 add https://github.com/anthropics/skills --skill frontend-design -y
+  npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills/tree/063bee94c3f4df8453406c830b0a7df0f2860278 --skill vercel-react-best-practices -y && npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills/tree/063bee94c3f4df8453406c830b0a7df0f2860278 --skill web-design-guidelines -y && npx skills@1.5.24 add https://github.com/anthropics/skills/tree/41bbe19d1a1a7eaab5e7bb9050a417e5c6cffc8f --skill frontend-design -y
   ```
 - **User declines** -> skip silently and continue to Task B. Do not retry, do not bring it up again this session.
 - **Install fails** -> continue with Stream reference files only; mention the failure briefly.
@@ -152,7 +152,7 @@ Do **not** modify `layout.tsx` or `globals.css` after scaffold - use Shadcn's de
 **First, verify `.env*` is gitignored** (the `stream` skill's [`RULES.md`](../stream/RULES.md) > Secrets). The Next.js scaffold's default already includes it; this is a safety net for projects whose `.gitignore` was hand-edited or doesn't yet exist:
 
 ```bash
-bash -c 'test -f .gitignore && grep -qE "^\.env" .gitignore || { test -s .gitignore && [ -n "$(tail -c1 .gitignore)" ] && echo "" >> .gitignore; echo ".env*" >> .gitignore; }; for f in .env .env.local .env.development.local .env.production.local; do git check-ignore -q "$f" || exit 1; done'
+bash -c 'test -f .gitignore && grep -qFx ".env*" .gitignore || { test -s .gitignore && [ -n "$(tail -c1 .gitignore)" ] && echo "" >> .gitignore; echo ".env*" >> .gitignore; }; for f in .env .env.local .env.development.local .env.production.local; do git check-ignore -q "$f" || exit 1; done'
 ```
 
 Then write secrets:
