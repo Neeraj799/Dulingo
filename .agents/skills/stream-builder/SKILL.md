@@ -9,7 +9,7 @@ allowed-tools: >-
   Bash(getstream *),
   Bash(npx *), Bash(npm install *), Bash(npm run *),
   Bash(node -e *), Bash(node --version), Bash(openssl rand *),
-  Bash(mv .scaffold*), Bash(rm -rf .scaffold),
+  Bash(mv .scaffold*), Bash(rm -rf .scaffold*),
   Bash(ls *), Bash(test *),
   Bash(grep *),
   Bash(cat package.json), Bash(cat pubspec.yaml),
@@ -43,7 +43,7 @@ Announce the network plan once (Trust readout below) and wait for an explicit af
 Before the first network command or proceeding with any scaffold writes, organization or app creation, project-file changes, or credential writes, print this verbatim to the user and wait for an explicit affirmative response:
 
 > Scaffolding now. Network calls you'll see:
-> - `npx shadcn@latest ...` (Vercel) - scaffold + UI components from npm.
+> - `npx shadcn@4.21.0 ...` (Vercel) - scaffold + UI components from npm.
 > - `npm install <stream-packages> --legacy-peer-deps` - Stream SDKs from npm (`stream-chat-react`, `@stream-io/video-react-sdk`, etc.).
 > - `getstream env` - local CLI, no network; writes `.env` (gitignored by the Next.js scaffold's default; Task B verifies).
 >
@@ -61,18 +61,18 @@ The builder runs three classes of network-touching commands. Each is listed here
 
 | Command | Publisher | Why unpinned | What it writes |
 |---|---|---|---|
-| `npx shadcn@latest init ...` (Task A) | Vercel - [`shadcn-ui/ui`](https://github.com/shadcn-ui/ui) | Scaffolder; `@latest` is the maintainer's documented usage. Pinning ships outdated scaffolds. | Project files in cwd. Next.js scaffold's `.gitignore` ignores `.env*` by default. |
-| `npx shadcn@latest add ...` (Task A.1) | Vercel - same source as above | Same scaffolder; component sync depends on registry parity. | Component files under `components/ui/`. |
+| `npx shadcn@4.21.0 init ...` (Task A) | Vercel - [`shadcn-ui/ui`](https://github.com/shadcn-ui/ui) | Scaffolder; pinned to reviewed release. | Project files in cwd. Next.js scaffold's `.gitignore` ignores `.env*` by default. |
+| `npx shadcn@4.21.0 add ...` (Task A.1) | Vercel - same source as above | Component installer; pinned to reviewed release. | Component files under `components/ui/`. |
 | `npm install <stream-packages> --legacy-peer-deps` (Task C) | GetStream (npm) for `@stream-io/*` and `stream-chat-react`; transitive deps via standard npm trust | Latest published versions of GetStream's own SDKs - same trust model as the CLI itself. | Modules under `node_modules/`. Runtime SDKs + transitive deps. |
-| `npx skills add <github>` (Task A.2) | `vercel-labs/agent-skills` and `anthropics/skills` | Optional. Markdown-only skill packs; `npx skills add` is the published install path. | Markdown files in the user's skills directory. **Gated by explicit user consent in Task A.2** - never runs without an affirmative answer. |
+| `npx skills@1.5.24 add <github>` (Task A.2) | `vercel-labs/agent-skills` and `anthropics/skills` | Optional. Markdown-only skill packs; pinned installer. | Markdown files in the user's skills directory. **Gated by explicit user consent in Task A.2** - never runs without an affirmative answer. |
 | `getstream env` (Task B) | GetStream (local CLI) | n/a (local CLI, no network at this step) | `.env` in the project root with `STREAM_API_KEY` + `STREAM_API_SECRET`. Task B verifies `.gitignore` covers `.env*` before writing (Next.js scaffold's default already does). The agent never reads `.env` (RULES.md > Secrets). |
 
 **Reviewer checklist:**
 
 - All `npx` invocations resolve to the publishers listed above; substitute a different publisher and the install fails.
-- `npx skills add` runs **only after** the disclosure prompt in Task A.2 and an explicit user "yes."
+- `npx skills@1.5.24 add` runs **only after** the disclosure prompt in Task A.2 and an explicit user "yes."
 - `.env` is written by the Stream CLI directly, not by the agent, and is not transmitted into the conversation.
-- If the user wants to pin a specific shadcn version, replace `@latest` with `@<version>` in Tasks A and A.1.
+- If the user wants to pin a different shadcn version, replace `@4.21.0` with `@<version>` in Tasks A and A.1.
 
 ---
 
@@ -116,13 +116,13 @@ Order:
 The scaffold command creates a new directory, so we scaffold into a temporary `.scaffold` subdirectory and move everything up. The `-n .scaffold` flag also lands in the generated `package.json` as `"name": ".scaffold"`, which npm/pnpm/yarn reject (a package name can't start with `.`), so the final step rewrites `name` to a valid slug derived from the project directory:
 
 ```bash
-npx shadcn@latest init -t next -b base -n .scaffold --no-monorepo -p <random-preset> && mv .scaffold/* .scaffold/.[!.]* . && rm -rf .scaffold && node -e "const fs=require('fs'),path=require('path'),j=require('./package.json');j.name=path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^[._-]+/,'')||'app';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n')"
+npx shadcn@4.21.0 init -t next -b base -n .scaffold --no-monorepo -p <random-preset> && rm -rf .scaffold/.git && mv .scaffold/* .scaffold/.[!.]* . && rm -rf .scaffold && node -e "const fs=require('fs'),path=require('path'),j=require('./package.json');j.name=path.basename(process.cwd()).toLowerCase().replace(/[^a-z0-9._-]+/g,'-').replace(/^[._-]+/,'')||'app';fs.writeFileSync('package.json',JSON.stringify(j,null,2)+'\n')"
 ```
 
 **Task A.1: Add base Shadcn components:**
 
 ```bash
-npx shadcn@latest add button input textarea card avatar badge separator
+npx shadcn@4.21.0 add button input textarea card avatar badge separator
 ```
 
 Add more components as the use case requires (e.g. `dialog`, `dropdown-menu`, `tabs`, `popover`).
@@ -136,11 +136,11 @@ Print this disclosure verbatim, then stop and wait for the user's answer:
 > - `web-design-guidelines` - from [`vercel-labs/agent-skills`](https://github.com/vercel-labs/agent-skills)
 > - `frontend-design` - from [`anthropics/skills`](https://github.com/anthropics/skills)
 >
-> The packs are markdown only - no scripts execute. If you say yes, I'll run `npx skills add ... -y` once per pack from those GitHub repos at their current `main` branch (`-y` skips the installer's own confirmation since you've consented here). These aren't required - Stream reference files cover SDK wiring either way. Install them?
+> The packs are markdown only - no scripts execute. If you say yes, I'll run `npx skills@1.5.24 add ... -y` once per pack from those GitHub repos at their current `main` branch (`-y` skips the installer's own confirmation since you've consented here). These aren't required - Stream reference files cover SDK wiring either way. Install them?
 
 - **User agrees** -> run:
   ```bash
-  npx skills add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices -y && npx skills add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines -y && npx skills add https://github.com/anthropics/skills --skill frontend-design -y
+  npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills --skill vercel-react-best-practices -y && npx skills@1.5.24 add https://github.com/vercel-labs/agent-skills --skill web-design-guidelines -y && npx skills@1.5.24 add https://github.com/anthropics/skills --skill frontend-design -y
   ```
 - **User declines** -> skip silently and continue to Task B. Do not retry, do not bring it up again this session.
 - **Install fails** -> continue with Stream reference files only; mention the failure briefly.
@@ -152,7 +152,7 @@ Do **not** modify `layout.tsx` or `globals.css` after scaffold - use Shadcn's de
 **First, verify `.env*` is gitignored** (the `stream` skill's [`RULES.md`](../stream/RULES.md) > Secrets). The Next.js scaffold's default already includes it; this is a safety net for projects whose `.gitignore` was hand-edited or doesn't yet exist:
 
 ```bash
-bash -c 'test -f .gitignore && grep -qE "^\.env" .gitignore || echo ".env*" >> .gitignore; for f in .env .env.local .env.development.local .env.production.local; do git check-ignore -q "$f" || exit 1; done'
+bash -c 'test -f .gitignore && grep -qE "^\.env" .gitignore || { test -s .gitignore && [ -n "$(tail -c1 .gitignore)" ] && echo "" >> .gitignore; echo ".env*" >> .gitignore; }; for f in .env .env.local .env.development.local .env.production.local; do git check-ignore -q "$f" || exit 1; done'
 ```
 
 Then write secrets:
@@ -315,4 +315,4 @@ When building apps that combine multiple products, read each relevant `reference
 
 ## Reference file paths
 
-Blueprint files live under `.agents/skills/stream-builder/references/` inside the Stream skill pack. Reference them as `.agents/skills/stream-builder/references/FEEDS.md` from the **root of this repository**. Do not use machine-specific absolute paths.
+Blueprint files live under `references/` inside the Stream skill pack. Reference them as `references/<Product>.md` (e.g. `references/FEEDS.md`) relative to the active skill directory, so both `.agents` and `.claude` installations work. Do not use machine-specific absolute paths.

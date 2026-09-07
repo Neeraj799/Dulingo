@@ -240,13 +240,55 @@ export async function POST(request: Request): Promise<Response> {
         (m: any) => m.user_id === userId || m.user?.id === userId
       );
 
-      if (createdById && createdById !== userId && !isMember) {
+      if ((!createdById || createdById !== userId) && !isMember) {
         return Response.json(
           { error: "Forbidden: Not authorized to access this call" },
           { status: 403 }
         );
       }
-    } catch {
+    } catch (callErr) {
+      const status =
+        (callErr as any)?.metadata?.responseCode ??
+        (callErr as any)?.status ??
+        (callErr as any)?.statusCode ??
+        (callErr as any)?.response?.status;
+      const errCode = (callErr as any)?.code;
+      const errMsg =
+        callErr instanceof Error ? callErr.message : String(callErr);
+
+      const isNotFound =
+        status === 404 ||
+        errCode === 404 ||
+        errCode === 16 ||
+        (/\b(not found|does not exist)\b/i.test(errMsg) &&
+          status !== 401 &&
+          status !== 403);
+
+      if (!isNotFound) {
+        console.error("Failed to verify Stream call for call creation:", callErr);
+
+        const isAuthError =
+          status === 401 ||
+          status === 403 ||
+          errCode === 401 ||
+          errCode === 403 ||
+          errCode === 17 ||
+          /\b(unauthorized|forbidden|not allowed|permission denied)\b/i.test(
+            errMsg
+          );
+
+        if (isAuthError) {
+          return Response.json(
+            { error: "Forbidden: Not authorized to access this call" },
+            { status: 403 }
+          );
+        }
+
+        return Response.json(
+          { error: "Failed to verify call status with upstream service" },
+          { status: 502 }
+        );
+      }
       // Call does not exist yet; proceed to create it
     }
 

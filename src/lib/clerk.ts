@@ -83,6 +83,7 @@ async function getPublicKeyForKid(kid?: string): Promise<CryptoKey> {
     if (!kid && jwksCache.keys.size > 0) {
       return jwksCache.keys.values().next().value!;
     }
+    throw new Error(`Public key with kid "${kid}" not found in Clerk JWKS`);
   }
 
   // Fetch JWKS

@@ -9,7 +9,6 @@ allowed-tools: >-
   Read, Write, Edit, Glob, Grep, Task,
   WebFetch(domain:getstream.io),
   WebFetch(domain:raw.githubusercontent.com),
-  Bash(bash -c *),
   Bash(ls *), Bash(find . *), Bash(grep *), Bash(awk *), Bash(tail *), Bash(sips *),
   Bash(cat package.json), Bash(cat app.json), Bash(cat app.config.js), Bash(cat app.config.ts),
   Bash(cat babel.config.js), Bash(cat metro.config.js),
