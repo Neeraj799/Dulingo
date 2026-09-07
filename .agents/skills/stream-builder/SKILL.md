@@ -36,20 +36,20 @@ This skill covers **three flows**:
 
 > **Track F (audit) skips this entire section.** A read-only best-practices review runs no onboarding, no auth, no CLI, and none of Steps 0-7 - go straight to the **Integration best-practices audit** section in [`references/VIDEO.md`](references/VIDEO.md) and report findings. Only fall into the build flow below if the user asks you to fix what the audit found.
 
-Announce the network plan once (Trust readout below), then **immediately start executing Steps 0-7** - no interactive prompts at the start (the user has authorized the build by asking for it).
+Announce the network plan once (Trust readout below) and wait for an explicit affirmative response before proceeding with any scaffold writes, organization or app creation, project-file changes, or credential writes.
 
-### Trust readout (announce, then continue on the same turn - do not wait)
+### Trust readout
 
-Before the first network command, print this verbatim to the user, then proceed straight into Step 0 without stopping for a reply:
+Before the first network command or proceeding with any scaffold writes, organization or app creation, project-file changes, or credential writes, print this verbatim to the user and wait for an explicit affirmative response:
 
 > Scaffolding now. Network calls you'll see:
 > - `npx shadcn@latest ...` (Vercel) - scaffold + UI components from npm.
 > - `npm install <stream-packages> --legacy-peer-deps` - Stream SDKs from npm (`stream-chat-react`, `@stream-io/video-react-sdk`, etc.).
 > - `getstream env` - local CLI, no network; writes `.env` (gitignored by the Next.js scaffold's default; Task B verifies).
 >
-> Interrupt me at any point if something looks wrong. The only step that pauses for explicit consent is the optional third-party skill packs in Task A.2.
+> Interrupt me at any point if something looks wrong.
 
-Full per-command audit (publisher, why unpinned, what each writes): section Install trust & integrity below. The user's continued silence after the readout is implicit consent for this scaffold; an objection or stop instruction aborts the run.
+Full per-command audit (publisher, why unpinned, what each writes): section Install trust & integrity below. An explicit affirmative response is required after the trust readout before proceeding with any scaffold writes, organization or app creation, project-file changes, or credential writes; silence must not be treated as consent, and an objection or stop instruction must still abort.
 
 Shadcn/ui is always installed during Step 3. Third-party **frontend skills** (`vercel-react-best-practices`, `web-design-guidelines`, `frontend-design`) are installed **only with explicit user consent** - see Task A.2 for the disclosure script. If the user declines, Step 4 proceeds using Stream references only. **Precedence (when the skills are present):** Stream references win for SDK wiring; frontend skills guide generic React / UI polish.
 

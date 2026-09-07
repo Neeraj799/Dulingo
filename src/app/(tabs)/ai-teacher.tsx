@@ -401,37 +401,53 @@ export default function AITeacherScreen() {
         {/* ── Main Stage Area (Mascot & Audio Stage) ─────────────────────── */}
         <View className="flex-1 bg-[#F5F2ED] rounded-[28px] overflow-hidden relative justify-between p-4 shadow-sm border border-[#EBE6DF]">
 
-          {/* Start Call Overlay (shown when call is idle or ended) */}
-          {(callState === "idle" || callState === "ended") && Platform.OS !== "web" && (
-            <View style={styles.startCallOverlay}>
-              <View className="bg-white rounded-3xl p-6 items-center shadow-xl mx-4">
-                <View className="w-16 h-16 rounded-full bg-[#EEF2FF] items-center justify-center mb-3">
-                  <Ionicons name="headset-outline" size={32} color="#5B42F3" />
+          {/* Start Call Overlay / Web Unsupported Notice (shown when call is idle or ended) */}
+          {(callState === "idle" || callState === "ended") && (
+            Platform.OS === "web" ? (
+              <View className="bg-white/95 border border-[#FED7AA] rounded-2xl p-4 mx-2 my-2 flex-row items-center gap-3 z-30 shadow-sm">
+                <View className="w-10 h-10 rounded-full bg-[#FFF7ED] items-center justify-center">
+                  <Ionicons name="information-circle" size={24} color="#EA580C" />
                 </View>
-                <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B] text-center mb-1">
-                  {callState === "ended" ? "Audio Session Ended" : "Start Audio Session"}
-                </Text>
-                <Text className="font-[Poppins-Regular] text-[13px] text-[#6B7280] text-center mb-4">
-                  {callState === "ended"
-                    ? "Reconnect to resume your live conversation with AI Teacher"
-                    : "Connect to a live audio call with AI Teacher for this lesson"}
-                </Text>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={startCall}
-                  className="bg-[#5B42F3] px-8 py-3.5 rounded-2xl flex-row items-center gap-2 shadow-sm"
-                >
-                  <Ionicons
-                    name={callState === "ended" ? "refresh-outline" : "call-outline"}
-                    size={18}
-                    color="#FFFFFF"
-                  />
-                  <Text className="font-[Poppins-Bold] text-[15px] text-white">
-                    {callState === "ended" ? "Reconnect Call" : "Start Call"}
+                <View className="flex-1">
+                  <Text className="font-[Poppins-SemiBold] text-[13px] text-[#0D132B]">
+                    Audio calls not supported on web
                   </Text>
-                </TouchableOpacity>
+                  <Text className="font-[Poppins-Regular] text-[11px] text-[#6B7280] leading-tight mt-0.5">
+                    Live AI Teacher audio calls require native WebRTC. Please use the mobile app on iOS or Android.
+                  </Text>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={styles.startCallOverlay}>
+                <View className="bg-white rounded-3xl p-6 items-center shadow-xl mx-4">
+                  <View className="w-16 h-16 rounded-full bg-[#EEF2FF] items-center justify-center mb-3">
+                    <Ionicons name="headset-outline" size={32} color="#5B42F3" />
+                  </View>
+                  <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B] text-center mb-1">
+                    {callState === "ended" ? "Audio Session Ended" : "Start Audio Session"}
+                  </Text>
+                  <Text className="font-[Poppins-Regular] text-[13px] text-[#6B7280] text-center mb-4">
+                    {callState === "ended"
+                      ? "Reconnect to resume your live conversation with AI Teacher"
+                      : "Connect to a live audio call with AI Teacher for this lesson"}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={startCall}
+                    className="bg-[#5B42F3] px-8 py-3.5 rounded-2xl flex-row items-center gap-2 shadow-sm"
+                  >
+                    <Ionicons
+                      name={callState === "ended" ? "refresh-outline" : "call-outline"}
+                      size={18}
+                      color="#FFFFFF"
+                    />
+                    <Text className="font-[Poppins-Bold] text-[15px] text-white">
+                      {callState === "ended" ? "Reconnect Call" : "Start Call"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )
           )}
 
           {/* Connecting Overlay */}
@@ -712,6 +728,18 @@ function getCallBannerConfig(
   callError: string | null,
   participantCount: number
 ) {
+  if (Platform.OS === "web") {
+    return {
+      bgClass: "bg-[#FFF7ED] border border-[#FED7AA]",
+      dotClass: "bg-[#EA580C]",
+      textClass: "text-[#C2410C]",
+      text: "Audio calls are not supported on web. Please use iOS or Android.",
+      showSpinner: false,
+      spinnerColor: "",
+      showRetry: false,
+    };
+  }
+
   if (callState === "loading") {
     return {
       bgClass: "bg-[#FFF7ED] border border-[#FED7AA]",

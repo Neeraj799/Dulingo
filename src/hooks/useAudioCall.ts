@@ -254,6 +254,9 @@ export function useAudioCall(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ userId, userName }),
           });
+          if (!res.ok) {
+            throw new Error(`Token fetch failed: ${res.status}`);
+          }
           const data = await res.json();
           return data.token as string;
         },

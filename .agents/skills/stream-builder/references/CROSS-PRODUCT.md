@@ -132,7 +132,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { StreamClient } from "@stream-io/node-sdk";
 import { StreamChat } from "stream-chat";
 
-const apiKey = process.env.STREAM_API_KEY!;
+const apiKey = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
 const apiSecret = process.env.STREAM_API_SECRET!;
 const videoClient = new StreamClient(apiKey, apiSecret);
 const chatClient = StreamChat.getInstance(apiKey, apiSecret);

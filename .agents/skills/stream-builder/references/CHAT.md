@@ -39,7 +39,7 @@ See RULES.md > No auto-seeding.
 
 ```ts
 import { StreamChat } from 'stream-chat';
-const client = StreamChat.getInstance(process.env.STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
+const client = StreamChat.getInstance(process.env.NEXT_PUBLIC_STREAM_API_KEY!, process.env.STREAM_API_SECRET!);
 ```
 
 ### Client Patterns

@@ -329,7 +329,7 @@ Video, Feeds, and Moderation slugs don't have version suffixes. Skip this step f
 
 For Chat SDK slugs (`chat-sdk-*`):
 
-1. **If the user specified a version** (e.g. `v14`) -> try the versioned URL first: `chat-sdk-react-v14.md`. If it returns 200, you're done. If it 404s, fall back to the base URL (`chat-sdk-react.md`) - this means the version the user named IS the current latest.
+1. **If the user specified a version** (e.g. `v14`) -> try the versioned URL first: `chat-sdk-react-v14.md`. If it returns 200, you're done. If it 404s, fall back to the base URL (`chat-sdk-react.md`) and inspect its heading before determining whether the requested version is current. Only state that the requested version is latest when the base page’s documented version matches it; otherwise treat it as obsolete or unsupported.
 
 2. **If the user didn't specify a version, or said "latest"** -> use the base URL directly. It always returns the latest version. The `# Heading` line will announce which version that is (e.g. `# React v13 (Latest)`) - use this when citing.
 
@@ -397,10 +397,12 @@ Quote what's there, then explicitly note what's missing:
 ```
 I couldn't find information about {topic} in the {SDK name} docs.
 
-You can browse the full index at https://getstream.io/cli/docs/{slug}.md or try:
+You can browse the full index or try:
 - A different framework (same question, different SDK)
-- The broader product docs at https://getstream.io/{product}/
+- The broader product docs
 ```
+
+In that response path, only include URLs explicitly returned by a fetch result and format any such URL as a Markdown link (e.g. `[the full index](<fetched-url>)`); otherwise provide no link. Do not include constructed URLs containing `{slug}` or `{product}`.
 
 **Never fabricate an answer.**
 
@@ -421,7 +423,7 @@ The slug was wrong - but you already have `llms.txt` in context from Step 1b. Re
 3. If still 404 or no matching slug exists in `llms.txt`, tell the user the SDK isn't in the docs and list what's available
 
 ### 404 on Chat SDK versioned URL
-The version the user named is the current latest - fall back to the base URL (`chat-sdk-react.md` instead of `chat-sdk-react-v13.md`). This is expected behavior, not a real failure.
+Fall back to the base URL (`chat-sdk-react.md`) and inspect its heading before determining whether the requested version is current. Only state that the requested version is latest when the base page’s documented version matches it; otherwise treat it as obsolete or unsupported.
 
 ### Fetched page doesn't answer the question
 - Check the framework index for related pages (same section, similar title)
