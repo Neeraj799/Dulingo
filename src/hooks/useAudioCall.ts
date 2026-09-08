@@ -57,6 +57,18 @@ export type AudioCallState =
  */
 export type AgentState = "idle" | "connecting" | "connected" | "failed";
 
+/**
+ * Real-time live caption for speech in the audio lesson.
+ */
+export interface LiveCaption {
+  id: string;
+  speaker: "teacher" | "user";
+  speakerName: string;
+  text: string;
+  isFinal: boolean;
+  timestamp: number;
+}
+
 interface UseAudioCallOptions {
   lessonId: string;
   languageCode: string;
@@ -76,9 +88,15 @@ interface UseAudioCallReturn {
   isMuted: boolean;
   error: string | null;
   participantCount: number;
+  activeCaption: LiveCaption | null;
+  captionHistory: LiveCaption[];
+  captionsEnabled: boolean;
   startCall: () => Promise<void>;
   endCall: () => Promise<void>;
   toggleMute: () => Promise<void>;
+  setMicrophoneActive: (active: boolean) => Promise<void>;
+  toggleCaptions: (enabled?: boolean) => void;
+  clearCaptions: () => void;
 }
 
 /**
@@ -94,24 +112,14 @@ export function useAudioCall(
   options: UseAudioCallOptions
 ): UseAudioCallReturn {
   const { getToken } = useAuth();
-  const {
-    lessonId,
-    languageCode,
-    languageName,
-    lessonTitle,
-    userId,
-    userName,
-    goal,
-    vocabulary,
-    phrases,
-    aiTeacherPrompt,
-  } = options;
-
   const [callState, setCallState] = useState<AudioCallState>("idle");
   const [agentState, setAgentState] = useState<AgentState>("idle");
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [participantCount, setParticipantCount] = useState(0);
+  const [activeCaption, setActiveCaption] = useState<LiveCaption | null>(null);
+  const [captionHistory, setCaptionHistory] = useState<LiveCaption[]>([]);
+  const [captionsEnabled, setCaptionsEnabled] = useState(true);
 
   const callRef = useRef<any>(null);
   const clientRef = useRef<any>(null);
@@ -121,6 +129,12 @@ export function useAudioCall(
   const mountedRef = useRef(true);
   const agentStateRef = useRef<AgentState>("idle");
   const sessionTokenRef = useRef<string | null>(null);
+  const optionsRef = useRef(options);
+  const isStartingRef = useRef(false);
+
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
 
   // Sync latest Clerk session token
   useEffect(() => {
@@ -153,6 +167,7 @@ export function useAudioCall(
       agentStateRef.current = "idle";
 
       // Release interval, subscriptions, and call listeners
+      isStartingRef.current = false;
       if (cleanupRef.current) {
         cleanupRef.current();
         cleanupRef.current = null;
@@ -212,6 +227,12 @@ export function useAudioCall(
   }, []);
 
   const startCall = useCallback(async () => {
+    // Prevent duplicate simultaneous call creations
+    if (isStartingRef.current || callRef.current) {
+      return;
+    }
+    isStartingRef.current = true;
+
     if (Platform.OS === "web" || !NativeModules?.WebRTCModule) {
       setError(
         "Stream calls require a custom dev build (npx expo run:android / ios) because native WebRTC is not supported in Expo Go."
@@ -219,6 +240,7 @@ export function useAudioCall(
       setCallState("error");
       agentStateRef.current = "failed";
       setAgentState("failed");
+      isStartingRef.current = false;
       return;
     }
 
@@ -227,6 +249,19 @@ export function useAudioCall(
       agentStateRef.current = "idle";
       setAgentState("idle");
       setError(null);
+
+      const {
+        lessonId,
+        languageCode,
+        languageName,
+        lessonTitle,
+        userId,
+        userName,
+        goal,
+        vocabulary,
+        phrases,
+        aiTeacherPrompt,
+      } = optionsRef.current;
 
       // 1. Create call server-side with packed lesson context and unique session suffix
       const authHeader = await getAuthHeader();
@@ -291,7 +326,13 @@ export function useAudioCall(
         apiKey: process.env.EXPO_PUBLIC_STREAM_API_KEY!,
         user: { id: userId, name: userName },
         tokenProvider: async () => {
-          const sessionToken = await getToken();
+          let sessionToken = await getToken();
+          if (!sessionToken && sessionTokenRef.current) {
+            sessionToken = sessionTokenRef.current;
+          }
+          if (sessionToken) {
+            sessionTokenRef.current = sessionToken;
+          }
           const res = await fetch(getApiUrl("/stream-token"), {
             method: "POST",
             headers: {
@@ -303,7 +344,11 @@ export function useAudioCall(
             body: JSON.stringify({ userName }),
           });
           if (!res.ok) {
-            throw new Error(`Token fetch failed: ${res.status}`);
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(
+              (errData as { error?: string })?.error ||
+                `Token fetch failed: ${res.status}`
+            );
           }
           const data = await res.json();
           return data.token as string;
@@ -311,6 +356,30 @@ export function useAudioCall(
       });
 
       clientRef.current = existingClient;
+
+      // Ensure location hint bypasses SFU edges experiencing regional outages/timeouts
+      if (existingClient?.streamClient) {
+        const origGetLocation = existingClient.streamClient.getLocationHint?.bind(
+          existingClient.streamClient
+        );
+        existingClient.streamClient.getLocationHint = async (...args: any[]) => {
+          try {
+            const hint = origGetLocation ? await origGetLocation(...args) : "IAD";
+            if (
+              !hint ||
+              hint === "MAA" ||
+              hint === "BOM" ||
+              hint === "HYD" ||
+              hint === "ERR"
+            ) {
+              return "IAD";
+            }
+            return hint;
+          } catch {
+            return "IAD";
+          }
+        };
+      }
 
       if (!mountedRef.current) return;
       setCallState("joining");
@@ -321,7 +390,46 @@ export function useAudioCall(
       });
       callRef.current = call;
 
-      await call.join({ create: true });
+      // Force coordinator to assign healthy SFU edge ('IAD' / US East) instead of broken Hyderabad edge
+      if (typeof call.doJoinRequest === "function") {
+        const origDoJoinRequest = call.doJoinRequest.bind(call);
+        call.doJoinRequest = async (data: any) => {
+          try {
+            const request = { ...data, location: "IAD" };
+            const joinResponse = await (call as any).streamClient.post(
+              `${(call as any).streamClientBasePath}/join`,
+              request
+            );
+            call.state.updateFromCallResponse(joinResponse.call);
+            call.state.setMembers(joinResponse.members);
+            call.state.setOwnCapabilities(joinResponse.own_capabilities);
+            if (data?.ring) {
+              (call as any).ringingSubject?.next(true);
+            }
+            if ((call as any).streamClient?._hasConnectionID?.()) {
+              (call as any).watching = true;
+              (call as any).clientStore?.registerOrUpdateCall(call);
+            }
+            console.log(
+              "[useAudioCall] Coordinator assigned SFU edge:",
+              joinResponse.credentials?.server?.edge_name
+            );
+            return joinResponse;
+          } catch (joinReqErr) {
+            console.warn(
+              "[useAudioCall] Location override failed, falling back to default:",
+              joinReqErr
+            );
+            return origDoJoinRequest(data);
+          }
+        };
+      }
+
+      await call.join({
+        create: true,
+        joinResponseTimeout: 20000,
+        maxJoinRetries: 3,
+      });
 
       if (!mountedRef.current) {
         call.leave().catch((err: unknown) =>
@@ -459,6 +567,85 @@ export function useAudioCall(
 
       const pollInterval = setInterval(updateParticipants, 1500);
 
+      // Handle custom caption events from Vision Agent
+      const handleCustomEvent = (event: any) => {
+        if (!mountedRef.current) return;
+        const custom = event?.custom || event?.data?.custom || event;
+        if (
+          custom &&
+          (custom.type === "caption" || custom.speaker || custom.text)
+        ) {
+          const rawText =
+            typeof custom.text === "string" ? custom.text.trim() : "";
+          if (!rawText) return;
+
+          const speaker: "teacher" | "user" =
+            custom.speaker === "user" || custom.speaker_id === "learner"
+              ? "user"
+              : "teacher";
+          const speakerName: string =
+            custom.speakerName || (speaker === "teacher" ? "AI Teacher" : "You");
+          const mode: string = custom.mode || "final";
+          const isFinal = mode === "final";
+          const id: string =
+            custom.id ||
+            `${speaker}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          const timestamp = custom.timestamp
+            ? Number(custom.timestamp) * 1000
+            : Date.now();
+
+          const captionItem: LiveCaption = {
+            id,
+            speaker,
+            speakerName,
+            text: rawText,
+            isFinal,
+            timestamp,
+          };
+
+          setActiveCaption(captionItem);
+          if (isFinal) {
+            setCaptionHistory((prev) => {
+              const updated = [...prev, captionItem];
+              return updated.length > 50 ? updated.slice(-50) : updated;
+            });
+          }
+        }
+      };
+
+      const handleClosedCaption = (event: any) => {
+        if (!mountedRef.current) return;
+        const text =
+          event?.text ||
+          event?.closed_caption?.text ||
+          event?.caption?.text ||
+          "";
+        if (!text || typeof text !== "string") return;
+
+        const speakerId =
+          event?.speaker_id || event?.closed_caption?.speaker_id || "";
+        const isUser =
+          speakerId === userId || speakerId === "learner" || speakerId === "user";
+
+        const captionItem: LiveCaption = {
+          id: `cc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          speaker: isUser ? "user" : "teacher",
+          speakerName: isUser ? "You" : "AI Teacher",
+          text: text.trim(),
+          isFinal: true,
+          timestamp: Date.now(),
+        };
+
+        setActiveCaption(captionItem);
+        setCaptionHistory((prev) => {
+          const updated = [...prev, captionItem];
+          return updated.length > 50 ? updated.slice(-50) : updated;
+        });
+      };
+
+      const unsubscribeCustom = call.on("custom", handleCustomEvent);
+      const unsubscribeCC = call.on("call.closed_caption", handleClosedCaption);
+
       const unsubscribeEnded = call.on("call.ended", () => {
         if (mountedRef.current) {
           setCallState("ended");
@@ -476,6 +663,8 @@ export function useAudioCall(
           unsubscribeJoined?.();
           unsubscribeCount?.();
           unsubscribeLeft?.();
+          unsubscribeCustom?.();
+          unsubscribeCC?.();
           unsubscribeEnded?.();
         } catch {
           // Swallow cleanup errors
@@ -483,29 +672,31 @@ export function useAudioCall(
       };
     } catch (err) {
       console.error("Start call error:", err);
+      if (callRef.current) {
+        callRef.current.leave().catch(() => {});
+        callRef.current = null;
+      }
       if (mountedRef.current) {
+        const isSfuTimeout =
+          err instanceof Error &&
+          (err.name === "SfuTimeoutError" ||
+            err.message.includes("SFU WS connection failed") ||
+            err.message.includes("timed out"));
         setError(
-          err instanceof Error ? err.message : "Failed to start audio call"
+          isSfuTimeout
+            ? "Connection to audio server timed out. Please check your internet connection or network firewall and retry."
+            : err instanceof Error
+            ? err.message
+            : "Failed to start audio call"
         );
         setCallState("error");
         agentStateRef.current = "failed";
         setAgentState("failed");
       }
+    } finally {
+      isStartingRef.current = false;
     }
-  }, [
-    lessonId,
-    userId,
-    userName,
-    lessonTitle,
-    languageCode,
-    languageName,
-    goal,
-    vocabulary,
-    phrases,
-    aiTeacherPrompt,
-    getToken,
-    getAuthHeader,
-  ]);
+  }, [getToken, getAuthHeader]);
 
   const endCall = useCallback(async () => {
     // 1. Clean up Vision Agent session
@@ -534,6 +725,7 @@ export function useAudioCall(
     }
 
     agentStateRef.current = "idle";
+    isStartingRef.current = false;
     if (mountedRef.current) {
       setAgentState("idle");
     }
@@ -601,15 +793,48 @@ export function useAudioCall(
     }
   }, [isMuted]);
 
+  const setMicrophoneActive = useCallback(async (active: boolean) => {
+    const call = callRef.current;
+    if (!call) return;
+    try {
+      if (active) {
+        const hasPerm = await requestMicrophonePermission();
+        if (!hasPerm) return;
+        await call.microphone.enable();
+        if (mountedRef.current) setIsMuted(false);
+      } else {
+        await call.microphone.disable();
+        if (mountedRef.current) setIsMuted(true);
+      }
+    } catch (err) {
+      console.warn("setMicrophoneActive error:", err);
+    }
+  }, []);
+
+  const toggleCaptions = useCallback((enabled?: boolean) => {
+    setCaptionsEnabled((prev) => (typeof enabled === "boolean" ? enabled : !prev));
+  }, []);
+
+  const clearCaptions = useCallback(() => {
+    setActiveCaption(null);
+    setCaptionHistory([]);
+  }, []);
+
   return {
     callState,
     agentState,
     isMuted,
     error,
     participantCount,
+    activeCaption,
+    captionHistory,
+    captionsEnabled,
     startCall,
     endCall,
     toggleMute,
+    setMicrophoneActive,
+    toggleCaptions,
+    clearCaptions,
   };
 }
 

@@ -31,6 +31,7 @@ export async function POST(request: Request): Promise<Response> {
     } catch (authErr) {
       const message =
         authErr instanceof Error ? authErr.message : "Unauthorized";
+      console.warn("stream-token auth failure:", message);
       return Response.json({ error: message }, { status: 401 });
     }
 

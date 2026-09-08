@@ -85,7 +85,11 @@ export function useStreamClient() {
             }),
           });
           if (!res.ok) {
-            throw new Error(`Token fetch failed: ${res.status}`);
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(
+              (errData as { error?: string })?.error ||
+                `Token fetch failed: ${res.status}`
+            );
           }
           const data = await res.json();
           return data.token as string;
@@ -96,6 +100,30 @@ export function useStreamClient() {
           user: streamUser,
           tokenProvider,
         });
+
+        // Ensure location hint bypasses SFU edges experiencing regional outages/timeouts
+        if (currentClient?.streamClient) {
+          const origGetLocation = currentClient.streamClient.getLocationHint?.bind(
+            currentClient.streamClient
+          );
+          currentClient.streamClient.getLocationHint = async (...args: any[]) => {
+            try {
+              const hint = origGetLocation ? await origGetLocation(...args) : "IAD";
+              if (
+                !hint ||
+                hint === "MAA" ||
+                hint === "BOM" ||
+                hint === "HYD" ||
+                hint === "ERR"
+              ) {
+                return "IAD";
+              }
+              return hint;
+            } catch {
+              return "IAD";
+            }
+          };
+        }
 
         if (!cancelled) {
           setClient(currentClient);

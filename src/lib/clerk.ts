@@ -195,12 +195,13 @@ export async function verifyClerkSession(
     throw new Error("Unauthorized: Invalid token signature");
   }
 
-  // Check expiration and validity window
+  // Check expiration and validity window with standard clock skew leeway
   const nowSec = Math.floor(Date.now() / 1000);
-  if (payload.exp && nowSec >= payload.exp) {
+  const CLOCK_TOLERANCE_SEC = 60;
+  if (payload.exp && nowSec >= payload.exp + CLOCK_TOLERANCE_SEC) {
     throw new Error("Unauthorized: Token has expired");
   }
-  if (payload.nbf && nowSec < payload.nbf - 10) {
+  if (payload.nbf && nowSec < payload.nbf - CLOCK_TOLERANCE_SEC) {
     throw new Error("Unauthorized: Token is not yet valid");
   }
 
