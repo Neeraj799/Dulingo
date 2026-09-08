@@ -1,4 +1,5 @@
 import { posthog } from "@/config/posthog";
+import { useLanguageStore } from "@/store/useLanguageStore";
 import { useSignIn, useSSO } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -73,6 +74,13 @@ export default function SignInScreen() {
       }
 
       if (signIn.status === "complete") {
+        const userId = (signIn as any).createdUserId || (signIn as any).userData?.id;
+        if (userId) {
+          const preferredLanguage = useLanguageStore.getState().selectedLanguageCode || null;
+          posthog?.identify(userId, {
+            preferred_language: preferredLanguage,
+          });
+        }
         await signIn.finalize({
           navigate: async ({ decorateUrl }) => {
             posthog?.capture("sign_in_completed", {

@@ -20,6 +20,7 @@ import { getLanguageByCode } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { useAudioCall } from "@/hooks/useAudioCall";
+import { posthog } from "@/lib/posthog";
 
 // Safe helpers for expo-speech to prevent crashes when native module is missing (e.g. in Expo Go / mock)
 const safeSpeechStop = () => {
@@ -75,6 +76,15 @@ export default function AITeacherScreen() {
     ? getLessonById(params.lessonId) || defaultLesson
     : defaultLesson;
 
+  // ── PostHog Event Tracking Refs & Lifecycle ────────────────────────────
+  const startTimeRef = useRef<number>(0);
+  const isCompletedRef = useRef<boolean>(false);
+  const lastQuestionIndexRef = useRef<number>(0);
+
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+  }, []);
+
   // Audio lesson controls interactive state
   const [isHoldingMic, setIsHoldingMic] = useState(false);
   const [activePhraseIndex, setActivePhraseIndex] = useState(0);
@@ -83,6 +93,40 @@ export default function AITeacherScreen() {
   );
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showEndCallModal, setShowEndCallModal] = useState(false);
+
+  // Keep lastQuestionIndexRef updated when activePhraseIndex changes
+  useEffect(() => {
+    lastQuestionIndexRef.current = activePhraseIndex;
+  }, [activePhraseIndex]);
+
+  // Track lesson_started on mount & lesson_abandoned on unmount if not completed
+  useEffect(() => {
+    if (!activeLesson) return;
+
+    startTimeRef.current = Date.now();
+    isCompletedRef.current = false;
+    lastQuestionIndexRef.current = 0;
+
+    posthog?.capture("lesson_started", {
+      lesson_id: activeLesson.id,
+      language: activeLesson.languageCode || selectedLanguageCode,
+      lesson_number: activeLesson.order,
+    });
+
+    return () => {
+      if (!isCompletedRef.current) {
+        const timeIntoLessonSeconds = Math.max(
+          0,
+          Math.floor((Date.now() - startTimeRef.current) / 1000)
+        );
+        posthog?.capture("lesson_abandoned", {
+          lesson_id: activeLesson.id,
+          time_into_lesson_seconds: timeIntoLessonSeconds,
+          last_question_index: lastQuestionIndexRef.current,
+        });
+      }
+    };
+  }, [activeLesson?.id]);
 
   // ── Session Feedback Interactive State ─────────────────────────────────
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -309,6 +353,7 @@ export default function AITeacherScreen() {
 
   const handleFinishSession = async () => {
     if (activeLesson && isSessionComplete) {
+      isCompletedRef.current = true;
       completeLesson(activeLesson.id, activeLesson.xpReward || 15);
     }
 

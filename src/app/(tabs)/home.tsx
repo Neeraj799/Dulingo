@@ -1,4 +1,4 @@
-import { useUser } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -73,7 +73,17 @@ function buildTodaysPlan(
 
 export default function HomeScreen() {
   const { user } = useUser();
+  const { signOut } = useAuth();
   const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      posthog?.reset();
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
 
   const selectedLanguage = useSelectedLanguage();
   const selectedLanguageCode = useLanguageStore((s) => s.selectedLanguageCode);
@@ -125,7 +135,7 @@ export default function HomeScreen() {
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <View className="flex-row items-center justify-between px-5 pt-3 pb-2">
           {/* Left: flag + greeting */}
-          <View className="flex-row items-center gap-3">
+          <View className="flex-row items-center gap-3 flex-1 mr-2">
             {selectedLanguage?.flag ? (
               // expo-image: dimensions must stay in style prop
               <Image
@@ -138,27 +148,33 @@ export default function HomeScreen() {
                 <Text className="text-[18px]">🌐</Text>
               </View>
             )}
-            <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B]">
+            <Text className="font-[Poppins-Bold] text-[18px] text-[#0D132B]" numberOfLines={1}>
               {greetingWord}, {displayName}! 👋
             </Text>
           </View>
 
-          {/* Right: streak + bell */}
-          <View className="flex-row items-center gap-4">
-            <View className="flex-row items-center gap-1">
+          {/* Right: streak + logout button */}
+          <View className="flex-row items-center gap-3">
+            <View className="flex-row items-center gap-1 bg-[#FFF8ED] px-2.5 py-1 rounded-full border border-[#FFE4C4]">
               {/* expo-image: dimensions must stay in style prop */}
               <Image
                 source={images.streakFire}
                 style={styles.streakIcon}
                 contentFit="contain"
               />
-              <Text className="font-[Poppins-Bold] text-[16px] text-[#0D132B]">
+              <Text className="font-[Poppins-Bold] text-[15px] text-[#FF8A00]">
                 {streak}
               </Text>
             </View>
-            <View>
-              <Ionicons name="notifications-outline" size={24} color="#0D132B" />
-            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Log out"
+              onPress={handleSignOut}
+              className="w-10 h-10 rounded-full bg-[#FF4B4B]/10 items-center justify-center"
+            >
+              <Ionicons name="log-out-outline" size={20} color="#FF4B4B" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -315,6 +331,22 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </View>
+        </View>
+
+        {/* ── Log Out Button ─────────────────────────────────────────────── */}
+        <View className="px-5 mt-4 mb-2">
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Log out of account"
+            className="flex-row items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-[#FF4B4B]/10 border border-[#FF4B4B]/20"
+          >
+            <Ionicons name="log-out-outline" size={20} color="#FF4B4B" />
+            <Text className="font-[Poppins-SemiBold] text-[15px] text-[#FF4B4B]">
+              Log out
+            </Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>

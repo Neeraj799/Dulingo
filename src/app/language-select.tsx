@@ -3,6 +3,7 @@ import { images } from "@/constants/images";
 import { languages } from "@/data/languages";
 import { useLanguageStore } from "@/store/useLanguageStore";
 import type { Language, LanguageCode } from "@/types/learning";
+import { useUser } from "@clerk/expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -19,6 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LanguageSelectScreen() {
   const router = useRouter();
+  const { user } = useUser();
   const setSelectedLanguage = useLanguageStore((s) => s.setSelectedLanguage);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCode, setSelectedCode] = useState<LanguageCode | null>(null);
@@ -43,7 +45,13 @@ export default function LanguageSelectScreen() {
     setSelectedLanguage(selectedCode);
     posthog?.capture("language_selected", {
       language_code: selectedCode,
+      language_name: selectedLanguage?.name || "",
     });
+    if (user?.id) {
+      posthog?.identify(user.id, {
+        preferred_language: selectedCode,
+      });
+    }
     router.replace("/");
   };
 

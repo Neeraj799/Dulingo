@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { posthog } from "@/config/posthog";
+import { useLanguageStore } from "@/store/useLanguageStore";
 import { images } from "../../constants/images";
 import VerificationModal from "../components/VerificationModal";
 
@@ -83,6 +84,16 @@ export default function SignUpScreen() {
       }
 
       if (signUp.status === "complete") {
+        const userId = signUp.createdUserId;
+        if (userId) {
+          const preferredLanguage = useLanguageStore.getState().selectedLanguageCode || null;
+          posthog?.identify(userId, {
+            preferred_language: preferredLanguage,
+            $set_once: {
+              signup_date: new Date().toISOString(),
+            },
+          });
+        }
         await signUp.finalize({
           navigate: ({ decorateUrl }) => {
             posthog?.capture("sign_up_completed", {

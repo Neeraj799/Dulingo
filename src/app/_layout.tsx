@@ -1,11 +1,11 @@
-import { useLanguageStore } from "@/store/useLanguageStore";
 import { useStreamClient } from "@/hooks/useStreamClient";
+import { useLanguageStore } from "@/store/useLanguageStore";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { useFonts } from "expo-font";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect, useState } from "react";
-import { Platform, NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 import "../../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -174,4 +174,3 @@ export default function RootLayout() {
     </ClerkProvider>
   );
 }
-
