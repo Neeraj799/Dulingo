@@ -128,20 +128,27 @@ async def create_agent(**kwargs) -> Agent:
     """Factory function to build a new Agent instance for each session."""
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
+    gemini_model = os.environ.get("GEMINI_MODEL")
 
     if (
         gemini_key
         and gemini_key not in ("your_gemini_api_key_here", "your_google_api_key_here")
         and not gemini_key.startswith("your_")
     ):
-        logger.info("Using Gemini Realtime LLM for AI Language Teacher")
-        llm = gemini.Realtime(api_key=gemini_key)
+        logger.info(f"Using Gemini Realtime LLM for AI Language Teacher (model={gemini_model or 'default'})")
+        llm_kwargs = {"api_key": gemini_key}
+        if gemini_model:
+            llm_kwargs["model"] = gemini_model
+        llm = gemini.Realtime(**llm_kwargs)
     elif openai_key and not openai_key.startswith("sk-proj-placeholder"):
         logger.info("Using OpenAI Realtime LLM for AI Language Teacher")
         llm = openai.Realtime(send_video=False)
     else:
         logger.info("Defaulting to Gemini Realtime LLM for AI Language Teacher")
-        llm = gemini.Realtime()
+        llm_kwargs = {}
+        if gemini_model:
+            llm_kwargs["model"] = gemini_model
+        llm = gemini.Realtime(**llm_kwargs)
 
     return Agent(
         edge=getstream.Edge(),
@@ -189,10 +196,20 @@ async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> Non
             if item is None:
                 break
             try:
-                # 1. Broadcast via custom call event for mobile UI
+                # 1. Send via agent custom event API
+                try:
+                    await agent.send_custom_event(item)
+                except Exception as agent_evt_err:
+                    logger.debug(f"Agent send_custom_event notice: {agent_evt_err}")
+
+                # 2. Broadcast via custom call event for mobile UI
                 if hasattr(call, "send_call_event"):
-                    await call.send_call_event(custom=item)
-                # 2. Also send as closed caption if SDK method is present
+                    try:
+                        await call.send_call_event(custom=item)
+                    except Exception as call_evt_err:
+                        logger.debug(f"Call send_call_event notice: {call_evt_err}")
+
+                # 3. Also send as closed caption if SDK method is present
                 if hasattr(call, "send_closed_caption"):
                     try:
                         await call.send_closed_caption(
@@ -223,14 +240,66 @@ async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> Non
         }
         caption_queue.put_nowait(caption_item)
 
-    # Attach speech transcription interceptors on Realtime LLM
-    if hasattr(agent, "llm") and agent.llm:
-        original_emit_agent = getattr(agent.llm, "_emit_agent_speech_transcription", None)
-        original_emit_user = getattr(agent.llm, "_emit_user_speech_transcription", None)
+    # Attach real-time speech transcription & boundary interceptors on Realtime LLM & Agent Event Bus
+    teacher_buffer = ""
+    user_buffer = ""
 
-        def hooked_emit_agent(*args, **kwargs):
+    def update_buffer(current_buf: str, new_text: str) -> str:
+        if not new_text:
+            return current_buf
+        if new_text.startswith(current_buf):
+            return new_text
+        return current_buf + new_text
+
+    @agent.subscribe
+    async def on_agent_bus_event(event):
+        nonlocal teacher_buffer, user_buffer
+        event_type = type(event).__name__
+        if "AgentSpeechStarted" in event_type:
+            teacher_buffer = ""
+        elif "AgentTranscript" in event_type or "AgentSpeechTranscription" in event_type:
+            text = getattr(event, "text", "")
+            mode = str(getattr(event, "mode", "delta"))
+            teacher_buffer = update_buffer(teacher_buffer, text)
+            queue_caption("teacher", "AI Teacher", teacher_buffer, mode)
+        elif "AgentSpeechEnded" in event_type:
+            if teacher_buffer.strip():
+                queue_caption("teacher", "AI Teacher", teacher_buffer, "final")
+            teacher_buffer = ""
+        elif "UserSpeechStarted" in event_type:
+            user_buffer = ""
+        elif "UserTranscript" in event_type or "UserSpeechTranscription" in event_type:
+            text = getattr(event, "text", "")
+            mode = str(getattr(event, "mode", "delta"))
+            user_buffer = update_buffer(user_buffer, text)
+            queue_caption("user", "You", user_buffer, mode)
+        elif "UserSpeechEnded" in event_type:
+            if user_buffer.strip():
+                queue_caption("user", "You", user_buffer, "final")
+            user_buffer = ""
+
+    if hasattr(agent, "llm") and agent.llm:
+        orig_agent_started = getattr(agent.llm, "_emit_agent_speech_started", None)
+        orig_agent_trans = getattr(agent.llm, "_emit_agent_speech_transcription", None)
+        orig_agent_ended = getattr(agent.llm, "_emit_agent_speech_ended", None)
+
+        orig_user_started = getattr(agent.llm, "_emit_user_speech_started", None)
+        orig_user_trans = getattr(agent.llm, "_emit_user_speech_transcription", None)
+        orig_user_ended = getattr(agent.llm, "_emit_user_speech_ended", None)
+
+        def hooked_agent_started(*args, **kwargs):
+            nonlocal teacher_buffer
+            teacher_buffer = ""
+            if callable(orig_agent_started):
+                try:
+                    return orig_agent_started(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"Agent speech started emit notice: {err}")
+
+        def hooked_agent_trans(*args, **kwargs):
+            nonlocal teacher_buffer
             text = ""
-            mode = "final"
+            mode = "delta"
             if args:
                 text = str(args[0])
                 if len(args) > 1:
@@ -240,25 +309,45 @@ async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> Non
             if "mode" in kwargs:
                 mode = str(kwargs["mode"])
 
+            teacher_buffer = update_buffer(teacher_buffer, text)
             try:
-                queue_caption("teacher", "AI Teacher", text, mode)
+                queue_caption("teacher", "AI Teacher", teacher_buffer, mode)
             except Exception as hook_err:
                 logger.debug(f"Agent caption hook notice: {hook_err}")
 
-            if callable(original_emit_agent):
+            if callable(orig_agent_trans):
                 try:
-                    return original_emit_agent(*args, **kwargs)
-                except TypeError:
-                    try:
-                        return original_emit_agent(text, mode=mode)
-                    except Exception as emit_err:
-                        logger.debug(f"Original agent transcription emit notice: {emit_err}")
-                except Exception as emit_err:
-                    logger.debug(f"Original agent transcription emit notice: {emit_err}")
+                    return orig_agent_trans(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"Original agent transcription emit notice: {err}")
 
-        def hooked_emit_user(*args, **kwargs):
+        def hooked_agent_ended(*args, **kwargs):
+            nonlocal teacher_buffer
+            if teacher_buffer.strip():
+                try:
+                    queue_caption("teacher", "AI Teacher", teacher_buffer, "final")
+                except Exception as hook_err:
+                    logger.debug(f"Agent final caption notice: {hook_err}")
+            teacher_buffer = ""
+            if callable(orig_agent_ended):
+                try:
+                    return orig_agent_ended(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"Agent speech ended emit notice: {err}")
+
+        def hooked_user_started(*args, **kwargs):
+            nonlocal user_buffer
+            user_buffer = ""
+            if callable(orig_user_started):
+                try:
+                    return orig_user_started(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"User speech started emit notice: {err}")
+
+        def hooked_user_trans(*args, **kwargs):
+            nonlocal user_buffer
             text = ""
-            mode = "final"
+            mode = "delta"
             if args:
                 text = str(args[0])
                 if len(args) > 1:
@@ -268,25 +357,40 @@ async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> Non
             if "mode" in kwargs:
                 mode = str(kwargs["mode"])
 
+            user_buffer = update_buffer(user_buffer, text)
             try:
-                queue_caption("user", "You", text, mode)
+                queue_caption("user", "You", user_buffer, mode)
             except Exception as hook_err:
                 logger.debug(f"User caption hook notice: {hook_err}")
 
-            if callable(original_emit_user):
+            if callable(orig_user_trans):
                 try:
-                    return original_emit_user(*args, **kwargs)
-                except TypeError:
-                    try:
-                        return original_emit_user(text, mode=mode)
-                    except Exception as emit_err:
-                        logger.debug(f"Original user transcription emit notice: {emit_err}")
-                except Exception as emit_err:
-                    logger.debug(f"Original user transcription emit notice: {emit_err}")
+                    return orig_user_trans(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"Original user transcription emit notice: {err}")
+
+        def hooked_user_ended(*args, **kwargs):
+            nonlocal user_buffer
+            if user_buffer.strip():
+                try:
+                    queue_caption("user", "You", user_buffer, "final")
+                except Exception as hook_err:
+                    logger.debug(f"User final caption notice: {hook_err}")
+            user_buffer = ""
+            if callable(orig_user_ended):
+                try:
+                    return orig_user_ended(*args, **kwargs)
+                except Exception as err:
+                    logger.debug(f"User speech ended emit notice: {err}")
 
         try:
-            agent.llm._emit_agent_speech_transcription = hooked_emit_agent
-            agent.llm._emit_user_speech_transcription = hooked_emit_user
+            agent.llm._emit_agent_speech_started = hooked_agent_started
+            agent.llm._emit_agent_speech_transcription = hooked_agent_trans
+            agent.llm._emit_agent_speech_ended = hooked_agent_ended
+
+            agent.llm._emit_user_speech_started = hooked_user_started
+            agent.llm._emit_user_speech_transcription = hooked_user_trans
+            agent.llm._emit_user_speech_ended = hooked_user_ended
         except Exception as patch_err:
             logger.debug(f"Could not hook LLM transcription emitters: {patch_err}")
 

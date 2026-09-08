@@ -461,16 +461,31 @@ export default function AITeacherScreen() {
             </Text>
           </View>
 
-          {/* Red End Call Button (icon only) */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setShowEndCallModal(true)}
-            accessibilityRole="button"
-            accessibilityLabel="End Call"
-            className="w-10 h-10 rounded-full bg-[#EF4444] items-center justify-center shadow-sm"
-          >
-            <MaterialIcons name="call-end" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+          {/* Top Header Buttons: Live Captions CC + Red End Call */}
+          <View className="flex-row items-center gap-2">
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowTranscriptModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Open Live Captions and Transcript"
+              className="px-3 h-10 rounded-full bg-[#EEF2FF] border border-[#C7D2FE] flex-row items-center justify-center gap-1.5 shadow-xs"
+            >
+              <MaterialIcons name="subtitles" size={18} color="#5B42F3" />
+              <Text className="font-[Poppins-Bold] text-[12px] text-[#5B42F3]">
+                Captions
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setShowEndCallModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="End Call"
+              className="w-10 h-10 rounded-full bg-[#EF4444] items-center justify-center shadow-sm"
+            >
+              <MaterialIcons name="call-end" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Sleek Minimal Topic / Lesson Card (Marked Area) ─────────────── */}
@@ -539,6 +554,18 @@ export default function AITeacherScreen() {
 
         {/* ── Main Stage Area (Mascot & Audio Stage) ─────────────────────── */}
         <View className="flex-1 bg-[#F5F2ED] rounded-[28px] overflow-hidden relative justify-between p-4 shadow-sm border border-[#EBE6DF]">
+          {/* Top-Left Live Captions Active Badge */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowTranscriptModal(true)}
+            className="absolute top-3.5 left-3.5 z-20 bg-white/90 border border-slate-200/80 px-2.5 py-1 rounded-full flex-row items-center gap-1.5 shadow-xs"
+          >
+            <MaterialIcons name="subtitles" size={14} color="#5B42F3" />
+            <Text className="font-[Poppins-Bold] text-[10px] text-[#5B42F3] tracking-wide uppercase">
+              Live Captions ON
+            </Text>
+          </TouchableOpacity>
+
           {/* Top-Right Settings Cog Button */}
           <TouchableOpacity
             activeOpacity={0.75}
@@ -559,8 +586,27 @@ export default function AITeacherScreen() {
             />
           </View>
 
-          {/* ── Realtime Live Captions Bubble (matches screenshot) ──── */}
+          {/* ── Realtime Live Captions Card (AI Teacher & User Speech) ────── */}
           <View className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-3 z-10">
+            <View className="flex-row items-center justify-between mb-1.5">
+              <View className="flex-row items-center gap-1.5">
+                <MaterialIcons name="subtitles" size={14} color="#5B42F3" />
+                <Text className="font-[Poppins-Bold] text-[11px] text-[#5B42F3] uppercase tracking-wider">
+                  Live Captions
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowTranscriptModal(true)}
+                className="flex-row items-center gap-0.5"
+              >
+                <Text className="font-[Poppins-SemiBold] text-[10px] text-[#64748B]">
+                  Full Log
+                </Text>
+                <Ionicons name="chevron-forward" size={10} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
             <View className="flex-row items-center justify-between">
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -568,12 +614,40 @@ export default function AITeacherScreen() {
                 onLongPress={handleNextPhrase}
                 className="flex-1 pr-3"
               >
+                {/* Speaker Indicator Badge */}
+                <View className="flex-row items-center gap-1.5 mb-1">
+                  <View
+                    className={`w-2 h-2 rounded-full ${
+                      (activeCaption?.speaker || simulatedCaption?.speaker) === "user"
+                        ? "bg-[#22C55E]"
+                        : "bg-[#5B42F3]"
+                    }`}
+                  />
+                  <Text
+                    className={`font-[Poppins-Bold] text-[11px] tracking-wide uppercase ${
+                      (activeCaption?.speaker || simulatedCaption?.speaker) === "user"
+                        ? "text-[#16A34A]"
+                        : "text-[#5B42F3]"
+                    }`}
+                  >
+                    {activeCaption?.speakerName ||
+                      simulatedCaption?.speakerName ||
+                      "AI Teacher"}
+                    {activeCaption && !activeCaption.isFinal ? " (speaking...)" : ""}
+                  </Text>
+                </View>
+
+                {/* Realtime Live Speech Text */}
                 <Text className="font-[Poppins-Bold] text-[16px] text-[#0D132B] leading-snug">
-                  {activeCaption?.text || simulatedCaption?.text || currentPhrase?.phrase || "¿Cómo estás?"}
+                  {activeCaption?.text ||
+                    simulatedCaption?.text ||
+                    currentPhrase?.phrase ||
+                    "¿Cómo estás?"}
                 </Text>
                 <Text className="font-[Poppins-Medium] text-[13px] text-[#64748B] mt-0.5">
-                  {(activeCaption?.speaker === "user" || simulatedCaption?.speaker === "user")
-                    ? "Your speech"
+                  {activeCaption?.speaker === "user" ||
+                  simulatedCaption?.speaker === "user"
+                    ? "Your live speech"
                     : currentPhrase?.translation || "How are you?"}
                 </Text>
               </TouchableOpacity>

@@ -606,6 +606,14 @@ export function useAudioCall(
           setActiveCaption(captionItem);
           if (isFinal) {
             setCaptionHistory((prev) => {
+              const last = prev[prev.length - 1];
+              if (
+                last &&
+                last.speaker === captionItem.speaker &&
+                last.text === captionItem.text
+              ) {
+                return prev;
+              }
               const updated = [...prev, captionItem];
               return updated.length > 50 ? updated.slice(-50) : updated;
             });
